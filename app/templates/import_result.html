@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Import Result</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+        }
+        .topbar {
+            margin-bottom: 20px;
+        }
+        .topbar a {
+            margin-right: 16px;
+            text-decoration: none;
+            color: blue;
+        }
+        .errors {
+            margin-top: 20px;
+            color: darkred;
+        }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <a href="/jobs">Jobs</a>
+        <a href="/import/csv">Import CSV</a>
+    </div>
+
+    <h1>Import Complete</h1>
+
+    <p><strong>File:</strong> {{ filename }}</p>
+    <p><strong>Rows Read:</strong> {{ summary.rows_read }}</p>
+    <p><strong>Inserted:</strong> {{ summary.inserted }}</p>
+    <p><strong>Updated:</strong> {{ summary.updated }}</p>
+    <p><strong>Skipped:</strong> {{ summary.skipped }}</p>
+
+    {% if summary.errors %}
+    <div class="errors">
+        <h3>Errors</h3>
+        <ul>
+            {% for error in summary.errors %}
+            <li>{{ error }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <p><a href="/jobs">Go view ranked jobs</a></p>
+</body>
+</html>

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Ranked Jobs</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background: #f7f7f7;
+        }
+        .topbar {
+            margin-bottom: 24px;
+        }
+        .topbar a {
+            margin-right: 16px;
+            text-decoration: none;
+            color: blue;
+            font-weight: bold;
+        }
+        .job-card {
+            background: white;
+            border: 1px solid #ddd;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        }
+        .score {
+            font-size: 22px;
+            font-weight: bold;
+            color: darkgreen;
+            margin-top: 8px;
+        }
+        .meta {
+            margin: 8px 0;
+            color: #333;
+        }
+        ul {
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <a href="/jobs">Jobs</a>
+        <a href="/import/csv">Import CSV</a>
+    </div>
+
+    <h1>Ranked Job List</h1>
+
+    {% if jobs|length == 0 %}
+        <p>No jobs found yet.</p>
+    {% endif %}
+
+    {% for job in jobs %}
+    <div class="job-card">
+        <h2>{{ loop.index }}. {{ job.company }} - {{ job.title }}</h2>
+
+        <div class="meta"><strong>Location:</strong> {{ job.location }}</div>
+        <div class="meta"><strong>Salary:</strong>
+            {% if job.salary %}
+                ${{ job.salary }}
+            {% else %}
+                N/A
+            {% endif %}
+        </div>
+        <div class="meta"><strong>Role Type:</strong> {{ job.role_type }}</div>
+        <div class="meta"><strong>Status:</strong> {{ job.status or "not_applied" }}</div>
+        <div class="meta"><strong>Source:</strong> {{ job.source or "manual" }}</div>
+       
+        <div class="score"><h3>Score: {{ job.final_score }}</h3></div>
+
+        <h4>Breakdown</h4>
+        <ul>
+            <li>Role Fit: {{ job.role_score }}</li>
+            <li>Location: {{ job.location_score }}</li>
+            <li>Compensation: {{ job.compensation_score }}</li>
+            <li>Company Quality: {{ job.company_quality_score }}</li>
+            <li>Growth: {{ job.growth_score }}</li>
+            <li>Stability: {{ job.stability_score }}</li>
+        </ul>
+
+        <!-- <h4>Reasons</h4>
+        <ul>
+            {% for reason in job.reasons %}
+                <li>{{ reason }}</li>
+            {% endfor %}
+        </ul> -->
+    </div>
+    {% endfor %}
+</body>
+</html>

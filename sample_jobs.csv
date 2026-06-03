@@ -1,0 +1,6 @@
+company,title,location,salary,url,description,date_posted
+Databricks,Software Engineer Intern,Chicago,95000,https://example.com/db,Backend systems,2026-06-01
+Stripe,Software Engineer Intern,San Francisco,100000,https://example.com/stripe,Payments infra,2026-06-01
+NVIDIA,Hardware Engineer Intern,Santa Clara,92000,https://example.com/nvidia,Hardware design,2026-06-02
+Ramp,Product Manager Intern,New York,85000,https://example.com/ramp,Product work,2026-06-01
+Databricks,Software Engineer Intern,Chicago,96000,https://example.com/db2,Updated posting,2026-06-03
