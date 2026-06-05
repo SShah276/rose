@@ -44,6 +44,8 @@
     <div class="topbar">
         <a href="/jobs">Jobs</a>
         <a href="/import/csv">Import CSV</a>
+        <a href="/settings">Settings</a>
+        <form method="POST" action="/fetch/github?repo=simplify" style="display:inline"><button type="submit">Fetch GitHub</button></form>
     </div>
 
     <h1>Ranked Job List</h1>
@@ -67,7 +69,10 @@
         <div class="meta"><strong>Role Type:</strong> {{ job.role_type }}</div>
         <div class="meta"><strong>Status:</strong> {{ job.status or "not_applied" }}</div>
         <div class="meta"><strong>Source:</strong> {{ job.source or "manual" }}</div>
-       
+
+        {% if job.url %}<div class="meta"><a href="{{ job.url }}" target="_blank">→ Apply</a></div>{% endif %}
+        <div class="meta"><strong>Posted:</strong> {{ job.date_posted or "Unknown" }}</div>
+
         <div class="score"><h3>Score: {{ job.final_score }}</h3></div>
 
         <h4>Breakdown</h4>
@@ -78,6 +83,7 @@
             <li>Company Quality: {{ job.company_quality_score }}</li>
             <li>Growth: {{ job.growth_score }}</li>
             <li>Stability: {{ job.stability_score }}</li>
+            <li>Freshness: {{ job.freshness_score }}</li>
         </ul>
 
         <!-- <h4>Reasons</h4>

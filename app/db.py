@@ -50,6 +50,27 @@ def init_db():
     )
     """)
 
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS settings (
+        key   TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+    )
+    """)
+
+    _setting_defaults = {
+        "role_weight":             "0.27",
+        "location_weight":         "0.19",
+        "compensation_weight":     "0.19",
+        "company_quality_weight":  "0.15",
+        "growth_weight":           "0.07",
+        "stability_weight":        "0.04",
+        "freshness_weight":        "0.09",
+    }
+    for key, value in _setting_defaults.items():
+        cursor.execute(
+            "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (key, value)
+        )
+
     conn.commit()
     conn.close()
 
@@ -199,3 +220,21 @@ def upsert_job(job_data):
     else:
         insert_job(job_data)
         return "inserted"
+
+def get_setting(key: str, default: str = "") -> str:
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT value FROM settings WHERE key = ?", (key,))
+    row = cursor.fetchone()
+    conn.close()
+    return row["value"] if row else default
+
+
+def set_setting(key: str, value: str):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, value)
+    )
+    conn.commit()
+    conn.close()

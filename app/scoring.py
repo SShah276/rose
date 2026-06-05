@@ -1,6 +1,31 @@
-def calculate_job_score(job):
+from datetime import date
+from app.db import get_setting
+
+
+_DEFAULT_WEIGHTS = {
+    "role_weight":            0.27,
+    "location_weight":        0.19,
+    "compensation_weight":    0.19,
+    "company_quality_weight": 0.15,
+    "growth_weight":          0.07,
+    "stability_weight":       0.04,
+    "freshness_weight":       0.09,
+}
+
+
+def _load_weights() -> dict:
+    weights = {}
+    for key, default in _DEFAULT_WEIGHTS.items():
+        try:
+            weights[key] = float(get_setting(key, str(default)))
+        except (ValueError, TypeError):
+            weights[key] = default
+    return weights
+
+
+def calculate_job_score(job, weights: dict):
     role_scores = {
-        # Software & Systems Engineering (Top Tier Base)
+        # Software & Systems Engineering
         "SWE": 99,
         "Backend": 98,
         "Systems/Infra": 97,
@@ -8,21 +33,21 @@ def calculate_job_score(job):
         "Frontend": 90,
         "Mobile (iOS/Android)": 90,
         "DevOps/SRE": 90,
-        
+
         # Hardware & Physical Systems
         "HW": 93,
         "Silicon/ASIC Design": 95,
         "FPGA Engineering": 95,
         "Embedded Systems": 95,
         "Robotics/Controls": 90,
-        
+
         # Data, AI, and Advanced Computing
-        "AI/ML": 90,          # Kept matching your log output
+        "AI/ML": 90,
         "Data Scientist": 87,
         "Data Engineer": 90,
         "Quantitative Developer": 87,
         "Quantitative Researcher": 80,
-        
+
         # Product, Design, & Business Operations
         "PM": 88,
         "Technical Product Manager (TPM)": 93,
@@ -34,12 +59,10 @@ def calculate_job_score(job):
     }
 
     location_scores = {
-        # Your Core Favorites
         "Chicago": 99,
         "New York": 96,
-
         "Remote": 85,
-        
+
         # California
         "San Francisco": 87,
         "Santa Clara": 85,
@@ -48,27 +71,27 @@ def calculate_job_score(job):
         "Sunnyvale": 85,
         "Palo Alto": 85,
         "Berkeley": 85,
-        "San Diego": 85,       # Big hardware/qualcomm presence
-        
-        # Major US Tech Hubs (High Density)
-        "Seattle": 93,        # No state income tax boost
-        "Bellevue": 93,
-        "Austin": 93,         # Strong tech scene, lower cost than coasts
-        "Boston": 93,         # Massive robotics/biotech hub
+        "San Diego": 85,
 
-        # Emerging & Secondary US Tech Hubs
+        # Major US Tech Hubs
+        "Seattle": 93,
+        "Bellevue": 93,
+        "Austin": 93,
+        "Boston": 93,
+
+        # Secondary Hubs
         "Atlanta": 90,
         "Denver/Boulder": 90,
         "Miami": 83,
-        "Pittsburgh": 80,     # Autonomous vehicles/AI hub
-        "Washington DC": 79,   # Defense tech/Aerospace
-        "Raleigh/Durham": 83,  # Research Triangle Park
+        "Pittsburgh": 80,
+        "Washington DC": 79,
+        "Raleigh/Durham": 83,
     }
 
     role_score = role_scores.get(job["role_type"], 50)
-    location_score = location_scores.get(job["location"], 60)
+    location_score = location_scores.get(job["location"], 50)
 
-    salary = job["salary"]
+    salary = job["salary"] or 0
     if salary >= 130000:
         compensation_score = 100
     elif salary >= 120000:
@@ -81,24 +104,46 @@ def calculate_job_score(job):
         compensation_score = 75
     else:
         compensation_score = 70
-    
-    cali_cities = ["San Francisco", "Santa Clara", "San Jose", "Sunnyvale", "Palo Alto", "Berkeley"]
-    is_cali = job["location"] in cali_cities
+    if salary == 0:
+        compensation_score = 75
 
-    if is_cali:
+    cali_cities = ["San Francisco", "Santa Clara", "San Jose", "Sunnyvale", "Palo Alto", "Berkeley"]
+    if job["location"] in cali_cities:
         compensation_score -= 5
 
     company_quality_score = job["company_quality"]
     growth_score = job["growth_score"]
     stability_score = job["stability_score"]
 
+    if job.get("date_posted"):
+        try:
+            posted = date.fromisoformat(job["date_posted"])
+            days_old = (date.today() - posted).days
+            if days_old <= 1:
+                freshness_score = 100
+            elif days_old <= 3:
+                freshness_score = 90
+            elif days_old <= 7:
+                freshness_score = 75
+            elif days_old <= 14:
+                freshness_score = 55
+            elif days_old <= 30:
+                freshness_score = 35
+            else:
+                freshness_score = 10
+        except ValueError:
+            freshness_score = 50
+    else:
+        freshness_score = 50
+
     final_score = (
-        role_score * 0.29 +
-        location_score * 0.21 +
-        compensation_score * 0.21 +
-        company_quality_score * 0.17 +
-        growth_score * 0.08 +
-        stability_score * 0.04
+        role_score              * weights["role_weight"] +
+        location_score          * weights["location_weight"] +
+        compensation_score      * weights["compensation_weight"] +
+        company_quality_score   * weights["company_quality_weight"] +
+        growth_score            * weights["growth_weight"] +
+        stability_score         * weights["stability_weight"] +
+        freshness_score         * weights["freshness_weight"]
     )
 
     return {
@@ -108,15 +153,17 @@ def calculate_job_score(job):
         "company_quality_score": company_quality_score,
         "growth_score": growth_score,
         "stability_score": stability_score,
+        "freshness_score": freshness_score,
         "final_score": round(final_score, 2)
     }
 
 
 def rank_jobs(jobs):
+    weights = _load_weights()
     scored_jobs = []
 
     for job in jobs:
-        scores = calculate_job_score(job)
+        scores = calculate_job_score(job, weights)
         scored_jobs.append({**job, **scores})
 
     scored_jobs.sort(key=lambda x: x["final_score"], reverse=True)
