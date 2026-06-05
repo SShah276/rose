@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ROSE — Application Tracker</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background: #f7f7f7; }
+        .topbar { margin-bottom: 24px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+        .topbar a { text-decoration: none; color: #2563eb; font-weight: bold; }
+        .topbar a:hover { text-decoration: underline; }
+
+        /* Stats */
+        .stats-bar { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 28px; }
+        .stat-box { background: white; border: 1px solid #ddd; border-radius: 8px; padding: 12px 18px; text-align: center; min-width: 110px; }
+        .stat-box .stat-num { font-size: 26px; font-weight: bold; color: #111; }
+        .stat-box .stat-label { font-size: 12px; color: #666; margin-top: 2px; }
+        .stat-box.urgent { border-color: #ef4444; background: #fef2f2; }
+        .stat-box.urgent .stat-num { color: #dc2626; }
+        .stat-box.good { border-color: #22c55e; background: #f0fdf4; }
+        .stat-box.good .stat-num { color: #16a34a; }
+
+        /* Follow-ups */
+        .section { background: white; border: 1px solid #ddd; border-radius: 10px; padding: 18px 22px; margin-bottom: 24px; }
+        .section h2 { margin: 0 0 12px; font-size: 16px; }
+        .followup-item { display: flex; gap: 16px; align-items: baseline; padding: 5px 0; border-bottom: 1px solid #f0f0f0; }
+        .followup-item:last-child { border-bottom: none; }
+        .followup-label { flex: 1; font-weight: 500; }
+        .followup-meta { font-size: 12px; color: #888; }
+
+        /* Table */
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+        th { background: #f9fafb; padding: 10px 14px; text-align: left; font-size: 13px; color: #555; border-bottom: 1px solid #e5e7eb; }
+        td { padding: 10px 14px; font-size: 14px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #fafafa; }
+
+        .badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; font-weight: 600; white-space: nowrap; }
+        .status-interested  { background: #dbeafe; color: #1d4ed8; }
+        .status-saved       { background: #ede9fe; color: #6d28d9; }
+        .status-applied     { background: #dcfce7; color: #15803d; }
+        .status-interview   { background: #ffedd5; color: #c2410c; }
+        .status-offer       { background: #fef9c3; color: #854d0e; }
+        .status-rejected    { background: #fee2e2; color: #b91c1c; }
+        .status-skipped     { background: #f3f4f6; color: #6b7280; }
+
+        .overdue { color: #dc2626; font-weight: bold; }
+        .notes-cell { max-width: 200px; font-size: 12px; color: #666; }
+        a { color: #2563eb; }
+        .empty { text-align: center; padding: 40px; color: #888; }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <a href="/jobs">Jobs</a>
+        <a href="/tracker">Tracker</a>
+        <a href="/import/csv">Import CSV</a>
+        <a href="/settings">Settings</a>
+    </div>
+
+    <h1>Application Tracker</h1>
+
+    <!-- Stats -->
+    <div class="stats-bar">
+        <div class="stat-box">
+            <div class="stat-num">{{ stats.total_jobs }}</div>
+            <div class="stat-label">Jobs Found</div>
+        </div>
+        <div class="stat-box good">
+            <div class="stat-num">{{ stats.total_applied }}</div>
+            <div class="stat-label">Total Applied</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-num">{{ stats.applied_week }}</div>
+            <div class="stat-label">This Week</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-num">{{ stats.interviews }}</div>
+            <div class="stat-label">Interviews</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-num">{{ stats.interview_rate }}%</div>
+            <div class="stat-label">Interview Rate</div>
+        </div>
+        {% if stats.offers > 0 %}
+        <div class="stat-box good">
+            <div class="stat-num">{{ stats.offers }}</div>
+            <div class="stat-label">Offers</div>
+        </div>
+        {% endif %}
+        {% if stats.followups_due > 0 %}
+        <div class="stat-box urgent">
+            <div class="stat-num">{{ stats.followups_due }}</div>
+            <div class="stat-label">Follow-ups Due</div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Follow-ups Due -->
+    {% if followups %}
+    <div class="section">
+        <h2>Follow-ups Due ({{ followups | length }})</h2>
+        {% for f in followups %}
+        <div class="followup-item">
+            <span class="followup-label">{{ f.company }} — {{ f.title }}</span>
+            <span class="followup-meta">Applied: {{ f.date_applied }}</span>
+            <span class="followup-meta overdue">Due: {{ f.follow_up_date }}</span>
+            {% if f.url %}<a class="followup-meta" href="{{ f.url }}" target="_blank">→ Job Link</a>{% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Applications table -->
+    {% if applications | length == 0 %}
+    <div class="empty">
+        <p>No tracked applications yet.</p>
+        <p>Go to the <a href="/jobs">Jobs page</a> and click <strong>Interested</strong>, <strong>Mark Applied</strong>, or <strong>Save</strong> on any job.</p>
+    </div>
+    {% else %}
+    <table>
+        <thead>
+            <tr>
+                <th>Company</th>
+                <th>Role</th>
+                <th>Location</th>
+                <th>Status</th>
+                <th>Applied</th>
+                <th>Follow-up</th>
+                <th>Resume</th>
+                <th>Notes</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for app in applications %}
+            <tr>
+                <td>
+                    {% if app.url %}
+                        <a href="{{ app.url }}" target="_blank">{{ app.company }}</a>
+                    {% else %}
+                        {{ app.company }}
+                    {% endif %}
+                </td>
+                <td>{{ app.title }}</td>
+                <td>{{ app.location or "—" }}</td>
+                <td>
+                    <span class="badge status-{{ app.status }}">
+                        {{ app.status | replace("_", " ") | title }}
+                    </span>
+                </td>
+                <td>{{ app.date_applied or "—" }}</td>
+                <td>
+                    {% if app.follow_up_date %}
+                        <span class="{% if app.status == 'applied' %}overdue{% endif %}">
+                            {{ app.follow_up_date }}
+                        </span>
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
+                <td>{{ app.resume_used or "—" }}</td>
+                <td class="notes-cell">{{ app.notes or "" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+</body>
+</html>

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mark Applied — {{ job.company }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background: #f7f7f7; }
+        .card { background: white; border: 1px solid #ddd; border-radius: 10px; padding: 28px; max-width: 560px; }
+        h1 { margin: 0 0 6px; font-size: 20px; }
+        .sub { color: #666; font-size: 14px; margin-bottom: 24px; }
+        label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 4px; margin-top: 16px; }
+        input[type="date"], input[type="text"], input[type="url"], textarea {
+            width: 100%; padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px;
+            font-size: 14px; box-sizing: border-box;
+        }
+        textarea { height: 80px; resize: vertical; }
+        .actions { display: flex; gap: 10px; margin-top: 24px; }
+        .btn-submit { background: #15803d; color: white; border: none; border-radius: 6px;
+                      padding: 9px 20px; font-size: 14px; font-weight: bold; cursor: pointer; }
+        .btn-submit:hover { background: #166534; }
+        .btn-cancel { background: #f3f4f6; color: #374151; border: none; border-radius: 6px;
+                      padding: 9px 20px; font-size: 14px; font-weight: bold; cursor: pointer;
+                      text-decoration: none; display: inline-block; }
+        .hint { font-size: 12px; color: #888; margin-top: 3px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>{{ job.company }} — {{ job.title }}</h1>
+        <div class="sub">{{ job.location or "" }}</div>
+
+        <form method="POST" action="/jobs/{{ job.id }}/apply">
+            <label>Date Applied</label>
+            <input type="date" name="date_applied" value="{{ today }}" required>
+
+            <label>Application URL</label>
+            <input type="url" name="application_url" value="{{ job.url or '' }}" placeholder="https://...">
+            <div class="hint">Where you submitted the application (if different from the job link)</div>
+
+            <label>Resume Used</label>
+            <input type="text" name="resume_used" placeholder="e.g. SWE_Resume_v3.pdf">
+
+            <label>Notes</label>
+            <textarea name="notes" placeholder="Referral, recruiter name, anything to remember..."></textarea>
+
+            <div class="actions">
+                <button type="submit" class="btn-submit">Save Application</button>
+                <a href="/jobs" class="btn-cancel">Cancel</a>
+            </div>
+        </form>
+    </div>
+</body>
+</html>

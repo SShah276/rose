@@ -1,98 +1,280 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Ranked Jobs</title>
+    <title>ROSE — Ranked Jobs</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 40px;
-            background: #f7f7f7;
-        }
-        .topbar {
-            margin-bottom: 24px;
-        }
-        .topbar a {
-            margin-right: 16px;
-            text-decoration: none;
-            color: blue;
-            font-weight: bold;
-        }
-        .job-card {
-            background: white;
-            border: 1px solid #ddd;
-            padding: 20px;
-            margin-bottom: 20px;
-            border-radius: 10px;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
-        }
-        .score {
-            font-size: 22px;
-            font-weight: bold;
-            color: darkgreen;
-            margin-top: 8px;
-        }
-        .meta {
-            margin: 8px 0;
-            color: #333;
-        }
-        ul {
-            margin-top: 8px;
-        }
+        body { font-family: Arial, sans-serif; margin: 40px; background: #f7f7f7; }
+
+        /* Nav */
+        .topbar { margin-bottom: 24px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+        .topbar a { text-decoration: none; color: #2563eb; font-weight: bold; }
+        .topbar a:hover { text-decoration: underline; }
+
+        /* Stats bar */
+        .stats-bar { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px; }
+        .stat-box { background: white; border: 1px solid #ddd; border-radius: 8px; padding: 12px 18px; text-align: center; min-width: 110px; }
+        .stat-box .stat-num { font-size: 26px; font-weight: bold; color: #111; }
+        .stat-box .stat-label { font-size: 12px; color: #666; margin-top: 2px; }
+        .stat-box.urgent { border-color: #ef4444; background: #fef2f2; }
+        .stat-box.urgent .stat-num { color: #dc2626; }
+        .stat-box.good { border-color: #22c55e; background: #f0fdf4; }
+        .stat-box.good .stat-num { color: #16a34a; }
+
+        /* Plan & followup sections */
+        .section { background: white; border: 1px solid #ddd; border-radius: 10px; padding: 18px 22px; margin-bottom: 20px; }
+        .section h2 { margin: 0 0 12px; font-size: 16px; }
+        .plan-item { display: flex; align-items: baseline; gap: 10px; padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
+        .plan-item:last-child { border-bottom: none; }
+        .plan-num { font-weight: bold; color: #888; min-width: 22px; }
+        .plan-action { font-weight: bold; font-size: 12px; padding: 2px 7px; border-radius: 4px; white-space: nowrap; }
+        .plan-action.apply  { background: #dcfce7; color: #15803d; }
+        .plan-action.follow { background: #fef9c3; color: #854d0e; }
+        .plan-action.review { background: #ede9fe; color: #6d28d9; }
+        .plan-label { flex: 1; }
+        .plan-reason { font-size: 12px; color: #888; white-space: nowrap; }
+
+        .followup-item { display: flex; gap: 16px; align-items: baseline; padding: 5px 0; border-bottom: 1px solid #f0f0f0; }
+        .followup-item:last-child { border-bottom: none; }
+        .followup-label { flex: 1; font-weight: 500; }
+        .followup-meta { font-size: 12px; color: #888; }
+
+        /* Job cards */
+        .job-card { background: white; border: 1px solid #ddd; padding: 20px; margin-bottom: 16px; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+        .job-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+        .job-title { font-size: 18px; font-weight: bold; margin: 0; }
+        .score { font-size: 20px; font-weight: bold; color: #15803d; white-space: nowrap; }
+        .meta { margin: 4px 0; color: #444; font-size: 14px; }
+        .meta a { color: #2563eb; }
+        .breakdown { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+        .breakdown span { background: #f3f4f6; border-radius: 4px; padding: 2px 8px; font-size: 12px; color: #555; }
+
+        /* Status badge */
+        .badge-status { font-size: 11px; padding: 2px 8px; border-radius: 999px; font-weight: 600; display: inline-block; margin-right: 8px; }
+        .status-not_applied, .status-not_reviewed { background: #f3f4f6; color: #6b7280; }
+        .status-interested  { background: #dbeafe; color: #1d4ed8; }
+        .status-saved       { background: #ede9fe; color: #6d28d9; }
+        .status-applied     { background: #dcfce7; color: #15803d; }
+        .status-interview   { background: #ffedd5; color: #c2410c; }
+        .status-offer       { background: #fef9c3; color: #854d0e; }
+        .status-rejected    { background: #fee2e2; color: #b91c1c; }
+
+        /* Action buttons */
+        .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; padding-top: 10px; border-top: 1px solid #f0f0f0; }
+        .btn { border: none; border-radius: 6px; padding: 5px 13px; font-size: 13px; font-weight: 600; cursor: pointer; }
+        .btn-green  { background: #dcfce7; color: #15803d; }
+        .btn-blue   { background: #dbeafe; color: #1d4ed8; }
+        .btn-purple { background: #ede9fe; color: #6d28d9; }
+        .btn-gray   { background: #f3f4f6; color: #6b7280; }
+        .btn-orange { background: #ffedd5; color: #c2410c; }
+        .btn-red    { background: #fee2e2; color: #b91c1c; }
+        .btn-gold   { background: #fef9c3; color: #854d0e; }
+        .btn:hover  { opacity: 0.8; }
     </style>
 </head>
 <body>
+
     <div class="topbar">
         <a href="/jobs">Jobs</a>
+        <a href="/tracker">Tracker</a>
         <a href="/import/csv">Import CSV</a>
         <a href="/settings">Settings</a>
-        <form method="POST" action="/fetch/github?repo=simplify" style="display:inline"><button type="submit">Fetch GitHub</button></form>
+        <form method="POST" action="/fetch/github?repo=simplify" style="display:inline">
+            <button type="submit" class="btn btn-blue">Fetch GitHub</button>
+        </form>
     </div>
 
-    <h1>Ranked Job List</h1>
+    <!-- Stats bar -->
+    <div class="stats-bar">
+        <div class="stat-box">
+            <div class="stat-num">{{ stats.total_jobs }}</div>
+            <div class="stat-label">Jobs Found</div>
+        </div>
+        <div class="stat-box good">
+            <div class="stat-num">{{ stats.total_applied }}</div>
+            <div class="stat-label">Total Applied</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-num">{{ stats.applied_week }}</div>
+            <div class="stat-label">This Week</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-num">{{ stats.interviews }}</div>
+            <div class="stat-label">Interviews</div>
+        </div>
+        {% if stats.offers > 0 %}
+        <div class="stat-box good">
+            <div class="stat-num">{{ stats.offers }}</div>
+            <div class="stat-label">Offers</div>
+        </div>
+        {% endif %}
+        {% if stats.followups_due > 0 %}
+        <div class="stat-box urgent">
+            <div class="stat-num">{{ stats.followups_due }}</div>
+            <div class="stat-label">Follow-ups Due</div>
+        </div>
+        {% endif %}
+    </div>
 
-    {% if jobs|length == 0 %}
-        <p>No jobs found yet.</p>
+    <!-- Today's Plan -->
+    {% if plan %}
+    <div class="section">
+        <h2>Today's Recruiting Plan</h2>
+        {% for item in plan %}
+        <div class="plan-item">
+            <span class="plan-num">{{ loop.index }}.</span>
+            {% if item.action == "Apply" %}
+                <span class="plan-action apply">Apply</span>
+                <span class="plan-label"><a href="/jobs/{{ item.job_id }}/apply">{{ item.label }}</a></span>
+            {% elif item.action == "Follow Up" %}
+                <span class="plan-action follow">Follow Up</span>
+                <span class="plan-label">{{ item.label }}</span>
+            {% else %}
+                <span class="plan-action review">Review</span>
+                <span class="plan-label">{{ item.label }}</span>
+            {% endif %}
+            <span class="plan-reason">{{ item.reason }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Follow-ups Due -->
+    {% if followups %}
+    <div class="section">
+        <h2>Follow-ups Due ({{ followups | length }})</h2>
+        {% for f in followups %}
+        <div class="followup-item">
+            <span class="followup-label">{{ f.company }} — {{ f.title }}</span>
+            <span class="followup-meta">Applied: {{ f.date_applied }}</span>
+            <span class="followup-meta">Due: {{ f.follow_up_date }}</span>
+            {% if f.url %}<a class="followup-meta" href="{{ f.url }}" target="_blank">→ Job Link</a>{% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <h1>Ranked Jobs ({{ jobs | length }})</h1>
+
+    {% if jobs | length == 0 %}
+        <p>No jobs yet — click <strong>Fetch GitHub</strong> to import from the internship list.</p>
     {% endif %}
 
     {% for job in jobs %}
+    {% set status = job.status or "not_applied" %}
     <div class="job-card">
-        <h2>{{ loop.index }}. {{ job.company }} - {{ job.title }}</h2>
+        <div class="job-header">
+            <h2 class="job-title">{{ loop.index }}. {{ job.company }} — {{ job.title }}</h2>
+            <div>
+                <span class="badge-status status-{{ status }}">{{ status | replace("_", " ") | title }}</span>
+                <span class="score">{{ job.final_score }}</span>
+            </div>
+        </div>
 
-        <div class="meta"><strong>Location:</strong> {{ job.location }}</div>
-        <div class="meta"><strong>Salary:</strong>
-            {% if job.salary %}
-                ${{ job.salary }}
-            {% else %}
-                N/A
+        <div class="meta"><strong>Location:</strong> {{ job.location or "—" }}</div>
+        <div class="meta"><strong>Role Type:</strong> {{ job.role_type or "—" }}</div>
+        <div class="meta">
+            <strong>Salary:</strong>
+            {% if job.salary %}${{ job.salary }}{% else %}N/A{% endif %}
+        </div>
+        <div class="meta"><strong>Posted:</strong> {{ job.date_posted or "Unknown" }}</div>
+        <div class="meta"><strong>Source:</strong> {{ job.source or "manual" }}</div>
+        {% if job.url %}
+        <div class="meta"><a href="{{ job.url }}" target="_blank">→ Apply</a></div>
+        {% endif %}
+        {% if status == "applied" and job.date_applied %}
+        <div class="meta">
+            <strong>Applied:</strong> {{ job.date_applied }}
+            {% if job.follow_up_date %} | <strong>Follow-up due:</strong> {{ job.follow_up_date }}{% endif %}
+        </div>
+        {% endif %}
+
+        <div class="breakdown">
+            <span>Role: {{ job.role_score }}</span>
+            <span>Location: {{ job.location_score }}</span>
+            <span>Comp: {{ job.compensation_score }}</span>
+            <span>Co. Quality: {{ job.company_quality_score }}</span>
+            <span>Growth: {{ job.growth_score }}</span>
+            <span>Stability: {{ job.stability_score }}</span>
+            <span>Freshness: {{ job.freshness_score }}</span>
+        </div>
+
+        <!-- Context-sensitive action buttons -->
+        <div class="actions">
+            {% if status in ["not_applied", "not_reviewed"] %}
+                <form method="POST" action="/jobs/{{ job.id }}/action">
+                    <input type="hidden" name="action" value="interested">
+                    <button class="btn btn-blue">Interested</button>
+                </form>
+                <form method="POST" action="/jobs/{{ job.id }}/action">
+                    <input type="hidden" name="action" value="apply">
+                    <button class="btn btn-green">Mark Applied</button>
+                </form>
+                <form method="POST" action="/jobs/{{ job.id }}/action">
+                    <input type="hidden" name="action" value="save">
+                    <button class="btn btn-purple">Save</button>
+                </form>
+                <form method="POST" action="/jobs/{{ job.id }}/action">
+                    <input type="hidden" name="action" value="skip">
+                    <button class="btn btn-gray">Skip</button>
+                </form>
+
+            {% elif status == "interested" %}
+                <form method="POST" action="/jobs/{{ job.id }}/action">
+                    <input type="hidden" name="action" value="apply">
+                    <button class="btn btn-green">Mark Applied</button>
+                </form>
+                <form method="POST" action="/jobs/{{ job.id }}/action">
+                    <input type="hidden" name="action" value="save">
+                    <button class="btn btn-purple">Save</button>
+                </form>
+                <form method="POST" action="/jobs/{{ job.id }}/action">
+                    <input type="hidden" name="action" value="skip">
+                    <button class="btn btn-gray">Skip</button>
+                </form>
+
+            {% elif status == "saved" %}
+                <form method="POST" action="/jobs/{{ job.id }}/action">
+                    <input type="hidden" name="action" value="apply">
+                    <button class="btn btn-green">Mark Applied</button>
+                </form>
+                <form method="POST" action="/jobs/{{ job.id }}/action">
+                    <input type="hidden" name="action" value="interested">
+                    <button class="btn btn-blue">Interested</button>
+                </form>
+                <form method="POST" action="/jobs/{{ job.id }}/action">
+                    <input type="hidden" name="action" value="skip">
+                    <button class="btn btn-gray">Skip</button>
+                </form>
+
+            {% elif status == "applied" %}
+                <form method="POST" action="/jobs/{{ job.id }}/action">
+                    <input type="hidden" name="action" value="interview">
+                    <button class="btn btn-orange">Got Interview</button>
+                </form>
+                <form method="POST" action="/jobs/{{ job.id }}/action">
+                    <input type="hidden" name="action" value="rejected">
+                    <button class="btn btn-red">Rejected</button>
+                </form>
+
+            {% elif status == "interview" %}
+                <form method="POST" action="/jobs/{{ job.id }}/action">
+                    <input type="hidden" name="action" value="offer">
+                    <button class="btn btn-gold">Got Offer!</button>
+                </form>
+                <form method="POST" action="/jobs/{{ job.id }}/action">
+                    <input type="hidden" name="action" value="rejected">
+                    <button class="btn btn-red">Rejected</button>
+                </form>
+
+            {% elif status in ["offer", "rejected"] %}
+                <form method="POST" action="/jobs/{{ job.id }}/action">
+                    <input type="hidden" name="action" value="restore">
+                    <button class="btn btn-gray">Restore</button>
+                </form>
             {% endif %}
         </div>
-        <div class="meta"><strong>Role Type:</strong> {{ job.role_type }}</div>
-        <div class="meta"><strong>Status:</strong> {{ job.status or "not_applied" }}</div>
-        <div class="meta"><strong>Source:</strong> {{ job.source or "manual" }}</div>
-
-        {% if job.url %}<div class="meta"><a href="{{ job.url }}" target="_blank">→ Apply</a></div>{% endif %}
-        <div class="meta"><strong>Posted:</strong> {{ job.date_posted or "Unknown" }}</div>
-
-        <div class="score"><h3>Score: {{ job.final_score }}</h3></div>
-
-        <h4>Breakdown</h4>
-        <ul>
-            <li>Role Fit: {{ job.role_score }}</li>
-            <li>Location: {{ job.location_score }}</li>
-            <li>Compensation: {{ job.compensation_score }}</li>
-            <li>Company Quality: {{ job.company_quality_score }}</li>
-            <li>Growth: {{ job.growth_score }}</li>
-            <li>Stability: {{ job.stability_score }}</li>
-            <li>Freshness: {{ job.freshness_score }}</li>
-        </ul>
-
-        <!-- <h4>Reasons</h4>
-        <ul>
-            {% for reason in job.reasons %}
-                <li>{{ reason }}</li>
-            {% endfor %}
-        </ul> -->
     </div>
     {% endfor %}
+
 </body>
 </html>
