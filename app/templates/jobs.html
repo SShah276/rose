@@ -76,6 +76,7 @@
     <div class="topbar">
         <a href="/jobs">Jobs</a>
         <a href="/tracker">Tracker</a>
+        <a href="/profile">Profile</a>
         <a href="/import/csv">Import CSV</a>
         <a href="/settings">Settings</a>
         <form method="POST" action="/fetch/github?repo=simplify" style="display:inline">
@@ -196,6 +197,11 @@
             <span>Growth: {{ job.growth_score }}</span>
             <span>Stability: {{ job.stability_score }}</span>
             <span>Freshness: {{ job.freshness_score }}</span>
+        </div>
+
+        <!-- AI assistant link -->
+        <div style="margin-top: 10px;">
+            <a href="/jobs/{{ job.id }}/ai" class="btn btn-purple" style="display:inline-block; text-decoration:none; padding:5px 13px; font-size:13px; font-weight:600; border-radius:6px;">AI Assistant</a>
         </div>
 
         <!-- Context-sensitive action buttons -->

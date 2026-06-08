@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ROSE AI — {{ job.company }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background: #f7f7f7; }
+        .topbar { margin-bottom: 20px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+        .topbar a { text-decoration: none; color: #2563eb; font-weight: bold; }
+
+        .job-banner { background: white; border: 1px solid #ddd; border-radius: 10px;
+                      padding: 16px 20px; margin-bottom: 20px; display: flex;
+                      justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .job-banner h2 { margin: 0; font-size: 18px; }
+        .job-meta { font-size: 13px; color: #666; margin-top: 4px; }
+        .score { font-size: 20px; font-weight: bold; color: #15803d; }
+
+        .generate-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 28px; }
+        .btn { border: none; border-radius: 7px; padding: 9px 18px; font-size: 13px;
+               font-weight: bold; cursor: pointer; }
+        .btn-ai     { background: #7c3aed; color: white; }
+        .btn-ai:hover { background: #6d28d9; }
+        .btn-save   { background: #1d4ed8; color: white; }
+        .btn-save:hover { background: #1e40af; }
+        .btn-approve { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+        .btn-approve.active { background: #15803d; color: white; border-color: #15803d; }
+        .btn-regen  { background: #f3f4f6; color: #374151; }
+        .btn-regen:hover { background: #e5e7eb; }
+        .btn-profile { background: #fef9c3; color: #854d0e; }
+
+        .output-section { background: white; border: 1px solid #ddd; border-radius: 10px;
+                          padding: 20px 24px; margin-bottom: 20px; }
+        .output-header { display: flex; justify-content: space-between; align-items: center;
+                         margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
+        .output-title { font-size: 16px; font-weight: bold; margin: 0; }
+        .output-meta { font-size: 12px; color: #888; }
+        .output-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+        textarea.output-content {
+            width: 100%; min-height: 240px; padding: 12px; border: 1px solid #e5e7eb;
+            border-radius: 7px; font-size: 13px; font-family: 'Courier New', monospace;
+            line-height: 1.6; box-sizing: border-box; resize: vertical; color: #111;
+        }
+        textarea.output-content:focus { outline: none; border-color: #7c3aed; }
+
+        .empty-section { background: white; border: 2px dashed #e5e7eb; border-radius: 10px;
+                         padding: 30px 24px; margin-bottom: 20px; text-align: center; color: #888; }
+        .empty-section p { margin: 0 0 14px; font-size: 14px; }
+
+        .alert { background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px;
+                 padding: 12px 16px; margin-bottom: 20px; color: #b91c1c; font-size: 13px; }
+        .profile-warn { background: #fef9c3; border: 1px solid #fde68a; border-radius: 8px;
+                        padding: 12px 16px; margin-bottom: 20px; font-size: 13px; color: #854d0e; }
+    </style>
+</head>
+<body>
+
+    <div class="topbar">
+        <a href="/jobs">← Jobs</a>
+        <a href="/tracker">Tracker</a>
+        <a href="/profile">Profile</a>
+    </div>
+
+    <!-- Job banner -->
+    <div class="job-banner">
+        <div>
+            <h2>{{ job.company }} — {{ job.title }}</h2>
+            <div class="job-meta">
+                {{ job.location or "?" }} | {{ job.role_type or "?" }} | Posted: {{ job.date_posted or "?" }}
+                {% if job.url %} | <a href="{{ job.url }}" target="_blank">→ Job Link</a>{% endif %}
+            </div>
+        </div>
+        <span class="score">{{ job.final_score or "—" }}</span>
+    </div>
+
+    {% if error %}
+    <div class="alert">Error: {{ error }}</div>
+    {% endif %}
+
+    {% if not profile_set %}
+    <div class="profile-warn">
+        Your candidate profile is empty — AI output will be generic.
+        <a href="/profile" style="font-weight:bold; color:#854d0e;">Set up your profile →</a>
+    </div>
+    {% endif %}
+
+    <!-- Generate buttons -->
+    <div class="generate-bar">
+        <form method="POST" action="/jobs/{{ job.id }}/ai/generate?type=job_analysis">
+            <button class="btn btn-ai">
+                {% if 'job_analysis' in outputs %}Regenerate Analysis{% else %}Generate Job Analysis{% endif %}
+            </button>
+        </form>
+        <form method="POST" action="/jobs/{{ job.id }}/ai/generate?type=cover_letter">
+            <button class="btn btn-ai">
+                {% if 'cover_letter' in outputs %}Regenerate Cover Letter{% else %}Generate Cover Letter{% endif %}
+            </button>
+        </form>
+        <form method="POST" action="/jobs/{{ job.id }}/ai/generate?type=outreach">
+            <button class="btn btn-ai">
+                {% if 'outreach' in outputs %}Regenerate Outreach{% else %}Generate Outreach{% endif %}
+            </button>
+        </form>
+        {% if not profile_set %}
+        <a href="/profile"><button type="button" class="btn btn-profile">Set Up Profile</button></a>
+        {% endif %}
+    </div>
+
+    <!-- Job Analysis -->
+    {% if 'job_analysis' in outputs %}
+    {% set out = outputs['job_analysis'] %}
+    <div class="output-section">
+        <div class="output-header">
+            <h3 class="output-title">Job Analysis</h3>
+            <div class="output-actions">
+                <span class="output-meta">{{ out.updated_at or out.created_at }}</span>
+                <form method="POST" action="/jobs/{{ job.id }}/ai/{{ out.id }}/approve" style="display:inline">
+                    <button class="btn btn-approve {% if out.approved %}active{% endif %}">
+                        {% if out.approved %}Approved{% else %}Approve{% endif %}
+                    </button>
+                </form>
+            </div>
+        </div>
+        <form method="POST" action="/jobs/{{ job.id }}/ai/{{ out.id }}/save">
+            <textarea class="output-content" name="content">{{ out.content }}</textarea>
+            <div style="margin-top:10px;">
+                <button type="submit" class="btn btn-save">Save Edits</button>
+            </div>
+        </form>
+    </div>
+    {% else %}
+    <div class="empty-section">
+        <p>No job analysis yet.</p>
+        <form method="POST" action="/jobs/{{ job.id }}/ai/generate?type=job_analysis">
+            <button class="btn btn-ai">Generate Job Analysis</button>
+        </form>
+    </div>
+    {% endif %}
+
+    <!-- Cover Letter -->
+    {% if 'cover_letter' in outputs %}
+    {% set out = outputs['cover_letter'] %}
+    <div class="output-section">
+        <div class="output-header">
+            <h3 class="output-title">Cover Letter</h3>
+            <div class="output-actions">
+                <span class="output-meta">{{ out.updated_at or out.created_at }}</span>
+                <form method="POST" action="/jobs/{{ job.id }}/ai/{{ out.id }}/approve" style="display:inline">
+                    <button class="btn btn-approve {% if out.approved %}active{% endif %}">
+                        {% if out.approved %}Approved{% else %}Approve{% endif %}
+                    </button>
+                </form>
+            </div>
+        </div>
+        <form method="POST" action="/jobs/{{ job.id }}/ai/{{ out.id }}/save">
+            <textarea class="output-content" name="content">{{ out.content }}</textarea>
+            <div style="margin-top:10px;">
+                <button type="submit" class="btn btn-save">Save Edits</button>
+            </div>
+        </form>
+    </div>
+    {% else %}
+    <div class="empty-section">
+        <p>No cover letter yet.</p>
+        <form method="POST" action="/jobs/{{ job.id }}/ai/generate?type=cover_letter">
+            <button class="btn btn-ai">Generate Cover Letter</button>
+        </form>
+    </div>
+    {% endif %}
+
+    <!-- Recruiter Outreach -->
+    {% if 'outreach' in outputs %}
+    {% set out = outputs['outreach'] %}
+    <div class="output-section">
+        <div class="output-header">
+            <h3 class="output-title">Recruiter Outreach</h3>
+            <div class="output-actions">
+                <span class="output-meta">{{ out.updated_at or out.created_at }}</span>
+                <form method="POST" action="/jobs/{{ job.id }}/ai/{{ out.id }}/approve" style="display:inline">
+                    <button class="btn btn-approve {% if out.approved %}active{% endif %}">
+                        {% if out.approved %}Approved{% else %}Approve{% endif %}
+                    </button>
+                </form>
+            </div>
+        </div>
+        <form method="POST" action="/jobs/{{ job.id }}/ai/{{ out.id }}/save">
+            <textarea class="output-content" name="content">{{ out.content }}</textarea>
+            <div style="margin-top:10px;">
+                <button type="submit" class="btn btn-save">Save Edits</button>
+            </div>
+        </form>
+    </div>
+    {% else %}
+    <div class="empty-section">
+        <p>No outreach messages yet.</p>
+        <form method="POST" action="/jobs/{{ job.id }}/ai/generate?type=outreach">
+            <button class="btn btn-ai">Generate Outreach</button>
+        </form>
+    </div>
+    {% endif %}
+
+</body>
+</html>

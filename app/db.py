@@ -83,6 +83,48 @@ def init_db():
             "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (key, value)
         )
 
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS candidate_profile (
+        id          INTEGER PRIMARY KEY DEFAULT 1,
+        name        TEXT DEFAULT '',
+        email       TEXT DEFAULT '',
+        school      TEXT DEFAULT '',
+        degree      TEXT DEFAULT '',
+        graduation_year TEXT DEFAULT '',
+        gpa         TEXT DEFAULT '',
+        personal_summary TEXT DEFAULT '',
+        skills      TEXT DEFAULT '',
+        experience  TEXT DEFAULT '',
+        projects    TEXT DEFAULT '',
+        strongest_bullets TEXT DEFAULT '',
+        preferred_roles   TEXT DEFAULT '',
+        resume_v1_name TEXT DEFAULT 'SWE General',
+        resume_v2_name TEXT DEFAULT 'Data / ML',
+        resume_v3_name TEXT DEFAULT 'Hardware / Embedded',
+        resume_v4_name TEXT DEFAULT 'PM / Product',
+        updated_at  TEXT
+    )
+    """)
+
+    cursor.execute("INSERT OR IGNORE INTO candidate_profile (id) VALUES (1)")
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS ai_outputs (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        job_id      INTEGER NOT NULL,
+        type        TEXT NOT NULL,
+        content     TEXT NOT NULL,
+        created_at  TEXT NOT NULL,
+        updated_at  TEXT,
+        approved    INTEGER DEFAULT 0,
+        FOREIGN KEY(job_id) REFERENCES jobs(id)
+    )
+    """)
+
+    cursor.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_ai_outputs_job_type ON ai_outputs(job_id, type)"
+    )
+
     _migrate_v3(conn)
     conn.commit()
     conn.close()
@@ -382,5 +424,87 @@ def set_setting(key: str, value: str):
     cursor.execute(
         "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, value)
     )
+    conn.commit()
+    conn.close()
+
+
+# ---------- candidate profile ----------
+
+_PROFILE_FIELDS = [
+    "name", "email", "school", "degree", "graduation_year", "gpa",
+    "personal_summary", "skills", "experience", "projects",
+    "strongest_bullets", "preferred_roles",
+    "resume_v1_name", "resume_v2_name", "resume_v3_name", "resume_v4_name",
+]
+
+
+def get_profile() -> dict:
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM candidate_profile WHERE id = 1")
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else {}
+
+
+def save_profile(data: dict):
+    allowed = {k: data.get(k, "") for k in _PROFILE_FIELDS}
+    allowed["updated_at"] = str(date.today())
+    conn = get_connection()
+    cursor = conn.cursor()
+    set_clause = ", ".join(f"{k} = ?" for k in allowed)
+    cursor.execute(
+        f"UPDATE candidate_profile SET {set_clause} WHERE id = 1",
+        list(allowed.values())
+    )
+    conn.commit()
+    conn.close()
+
+
+# ---------- AI outputs ----------
+
+def get_ai_outputs(job_id: int) -> dict:
+    """Returns {type: output_dict} for all AI outputs belonging to a job."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM ai_outputs WHERE job_id = ? ORDER BY created_at DESC", (job_id,))
+    rows = cursor.fetchall()
+    conn.close()
+    return {row["type"]: dict(row) for row in rows}
+
+
+def upsert_ai_output(job_id: int, output_type: str, content: str) -> int:
+    now = str(date.today())
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO ai_outputs (job_id, type, content, created_at, approved)
+        VALUES (?, ?, ?, ?, 0)
+        ON CONFLICT(job_id, type) DO UPDATE SET
+            content    = excluded.content,
+            updated_at = excluded.created_at,
+            approved   = 0
+    """, (job_id, output_type, content, now))
+    output_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return output_id
+
+
+def save_ai_output_content(output_id: int, content: str):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE ai_outputs SET content = ?, updated_at = ? WHERE id = ?",
+        (content, str(date.today()), output_id)
+    )
+    conn.commit()
+    conn.close()
+
+
+def toggle_ai_output_approved(output_id: int):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE ai_outputs SET approved = 1 - approved WHERE id = ?", (output_id,))
     conn.commit()
     conn.close()

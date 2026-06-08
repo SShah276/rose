@@ -9,7 +9,10 @@ from app.db import (
     update_application, get_followups_due, get_tracked_applications, get_stats,
     get_setting, set_setting, upsert_job,
     reset_all_statuses, restore_skipped,
+    get_profile, save_profile,
+    get_ai_outputs, upsert_ai_output, save_ai_output_content, toggle_ai_output_approved,
 )
+from app.ai import generate_job_analysis, generate_cover_letter, generate_outreach
 from app.scoring import rank_jobs
 from app.ingestion import import_jobs_from_csv_bytes, normalize_job
 from app.sources.github_source import GitHubSource, KNOWN_REPOS
@@ -240,6 +243,91 @@ def fetch_github(request: Request, repo: str = "simplify"):
 
 
 # ---------- settings ----------
+
+# ---------- candidate profile ----------
+
+@app.get("/profile")
+def profile_page(request: Request):
+    return templates.TemplateResponse(
+        request=request, name="profile.html", context={"profile": get_profile()}
+    )
+
+
+@app.post("/profile")
+async def save_profile_route(request: Request):
+    form = await request.form()
+    save_profile(dict(form))
+    return RedirectResponse(url="/profile", status_code=303)
+
+
+# ---------- AI assistant ----------
+
+_AI_GENERATORS = {
+    "job_analysis":  generate_job_analysis,
+    "cover_letter":  generate_cover_letter,
+    "outreach":      generate_outreach,
+}
+
+
+@app.get("/jobs/{job_id}/ai")
+def job_ai_page(job_id: int, request: Request):
+    jobs = get_all_jobs()
+    job = next((j for j in jobs if j["id"] == job_id), None)
+    if not job:
+        return RedirectResponse(url="/jobs", status_code=303)
+    return templates.TemplateResponse(
+        request=request,
+        name="job_ai.html",
+        context={
+            "job": job,
+            "outputs": get_ai_outputs(job_id),
+            "profile_set": bool(get_profile().get("name")),
+        }
+    )
+
+
+@app.post("/jobs/{job_id}/ai/generate")
+async def ai_generate(job_id: int, request: Request, type: str = "job_analysis"):
+    if type not in _AI_GENERATORS:
+        return RedirectResponse(url=f"/jobs/{job_id}/ai", status_code=303)
+
+    jobs = get_all_jobs()
+    job = next((j for j in jobs if j["id"] == job_id), None)
+    if not job:
+        return RedirectResponse(url="/jobs", status_code=303)
+
+    error = None
+    try:
+        content = _AI_GENERATORS[type](job, get_profile())
+        upsert_ai_output(job_id, type, content)
+    except Exception as e:
+        error = str(e)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="job_ai.html",
+        context={
+            "job": job,
+            "outputs": get_ai_outputs(job_id),
+            "profile_set": bool(get_profile().get("name")),
+            "error": error,
+        }
+    )
+
+
+@app.post("/jobs/{job_id}/ai/{output_id}/save")
+async def ai_save_output(job_id: int, output_id: int, request: Request):
+    form = await request.form()
+    content = form.get("content", "")
+    save_ai_output_content(output_id, content)
+    return RedirectResponse(url=f"/jobs/{job_id}/ai", status_code=303)
+
+
+@app.post("/jobs/{job_id}/ai/{output_id}/approve")
+def ai_approve_output(job_id: int, output_id: int):
+    toggle_ai_output_approved(output_id)
+    return RedirectResponse(url=f"/jobs/{job_id}/ai", status_code=303)
+
 
 # ---------- test / admin resets ----------
 
