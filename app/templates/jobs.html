@@ -1,90 +1,192 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ROSE — Ranked Jobs</title>
+    <title>ROSE — Jobs</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 40px; background: #f7f7f7; }
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+               margin: 0; background: #f5f5f5; color: #111; }
+        .shell { max-width: 900px; margin: 0 auto; padding: 20px; }
 
-        /* Nav */
-        .topbar { margin-bottom: 24px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-        .topbar a { text-decoration: none; color: #2563eb; font-weight: bold; }
-        .topbar a:hover { text-decoration: underline; }
+        /* ── Nav ── */
+        .nav { display: flex; align-items: center; gap: 4px; padding-bottom: 12px;
+               border-bottom: 1px solid #e5e7eb; margin-bottom: 0; }
+        .nav-brand { font-weight: 800; font-size: 15px; color: #111; text-decoration: none;
+                     margin-right: 12px; letter-spacing: -0.3px; }
+        .nav a { text-decoration: none; color: #555; font-size: 13px; font-weight: 600;
+                 padding: 4px 9px; border-radius: 6px; }
+        .nav a:hover { background: #f3f4f6; color: #111; }
+        .nav a.active { background: #111; color: white; }
+        .nav-spacer { flex: 1; }
 
-        /* Stats bar */
-        .stats-bar { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px; }
-        .stat-box { background: white; border: 1px solid #ddd; border-radius: 8px; padding: 12px 18px; text-align: center; min-width: 110px; }
-        .stat-box .stat-num { font-size: 26px; font-weight: bold; color: #111; }
-        .stat-box .stat-label { font-size: 12px; color: #666; margin-top: 2px; }
+        /* ── Import bar ── */
+        .import-bar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+                      padding: 8px 0; border-bottom: 1px solid #e5e7eb; margin-bottom: 20px; }
+        .import-label { font-size: 10px; font-weight: 700; color: #bbb; text-transform: uppercase;
+                        letter-spacing: 0.08em; margin-right: 2px; white-space: nowrap; }
+        .btn-import { border: 1px solid #e5e7eb; border-radius: 5px; padding: 3px 10px;
+                      font-size: 12px; font-weight: 600; cursor: pointer; background: white;
+                      color: #555; transition: all 0.1s; }
+        .btn-import:hover { background: #2563eb; color: white; border-color: #2563eb; }
+
+        /* ── Stats ── */
+        .stats-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+        .stat-box { background: white; border: 1px solid #e5e7eb; border-radius: 8px;
+                    padding: 10px 16px; text-align: center; min-width: 96px; }
+        .stat-num { font-size: 22px; font-weight: 800; color: #111; }
+        .stat-label { font-size: 11px; color: #888; margin-top: 1px; }
         .stat-box.urgent { border-color: #ef4444; background: #fef2f2; }
         .stat-box.urgent .stat-num { color: #dc2626; }
         .stat-box.good { border-color: #22c55e; background: #f0fdf4; }
         .stat-box.good .stat-num { color: #16a34a; }
 
-        /* Plan & followup sections */
-        .section { background: white; border: 1px solid #ddd; border-radius: 10px; padding: 18px 22px; margin-bottom: 20px; }
-        .section h2 { margin: 0 0 12px; font-size: 16px; }
-        .plan-item { display: flex; align-items: baseline; gap: 10px; padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
+        /* ── Info sections (plan, follow-ups) ── */
+        .section { background: white; border: 1px solid #e5e7eb; border-radius: 10px;
+                   padding: 14px 18px; margin-bottom: 14px; }
+        .section-title { font-size: 11px; font-weight: 700; color: #aaa; text-transform: uppercase;
+                         letter-spacing: 0.06em; margin: 0 0 10px; }
+        .plan-item { display: flex; align-items: baseline; gap: 8px; padding: 5px 0;
+                     border-bottom: 1px solid #f3f4f6; font-size: 13px; }
         .plan-item:last-child { border-bottom: none; }
-        .plan-num { font-weight: bold; color: #888; min-width: 22px; }
-        .plan-action { font-weight: bold; font-size: 12px; padding: 2px 7px; border-radius: 4px; white-space: nowrap; }
-        .plan-action.apply  { background: #dcfce7; color: #15803d; }
-        .plan-action.follow { background: #fef9c3; color: #854d0e; }
-        .plan-action.review { background: #ede9fe; color: #6d28d9; }
+        .plan-num { color: #ccc; min-width: 16px; font-weight: 700; }
+        .plan-badge { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;
+                      white-space: nowrap; }
+        .plan-badge.apply  { background: #dcfce7; color: #15803d; }
+        .plan-badge.follow { background: #fef9c3; color: #854d0e; }
+        .plan-badge.review { background: #ede9fe; color: #6d28d9; }
         .plan-label { flex: 1; }
-        .plan-reason { font-size: 12px; color: #888; white-space: nowrap; }
+        .plan-reason { font-size: 11px; color: #bbb; }
 
-        .followup-item { display: flex; gap: 16px; align-items: baseline; padding: 5px 0; border-bottom: 1px solid #f0f0f0; }
+        .followup-item { display: flex; gap: 12px; align-items: baseline; padding: 5px 0;
+                         border-bottom: 1px solid #f3f4f6; font-size: 13px; }
         .followup-item:last-child { border-bottom: none; }
         .followup-label { flex: 1; font-weight: 500; }
         .followup-meta { font-size: 12px; color: #888; }
 
-        /* Job cards */
-        .job-card { background: white; border: 1px solid #ddd; padding: 20px; margin-bottom: 16px; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
-        .job-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
-        .job-title { font-size: 18px; font-weight: bold; margin: 0; }
-        .score { font-size: 20px; font-weight: bold; color: #15803d; white-space: nowrap; }
-        .meta { margin: 4px 0; color: #444; font-size: 14px; }
-        .meta a { color: #2563eb; }
-        .breakdown { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
-        .breakdown span { background: #f3f4f6; border-radius: 4px; padding: 2px 8px; font-size: 12px; color: #555; }
+        /* ── Job cards ── */
+        .list-title { font-size: 16px; font-weight: 700; margin: 0 0 12px; color: #111; }
+        .list-title span { font-size: 13px; font-weight: 400; color: #aaa; }
 
-        /* Status badge */
-        .badge-status { font-size: 11px; padding: 2px 8px; border-radius: 999px; font-weight: 600; display: inline-block; margin-right: 8px; }
-        .status-not_applied, .status-not_reviewed { background: #f3f4f6; color: #6b7280; }
-        .status-interested  { background: #dbeafe; color: #1d4ed8; }
-        .status-saved       { background: #ede9fe; color: #6d28d9; }
-        .status-applied     { background: #dcfce7; color: #15803d; }
-        .status-interview   { background: #ffedd5; color: #c2410c; }
-        .status-offer       { background: #fef9c3; color: #854d0e; }
-        .status-rejected    { background: #fee2e2; color: #b91c1c; }
+        .job-card { background: white; border: 1px solid #e5e7eb; border-radius: 10px;
+                    padding: 14px 18px; margin-bottom: 10px; }
 
-        /* Action buttons */
-        .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; padding-top: 10px; border-top: 1px solid #f0f0f0; }
-        .btn { border: none; border-radius: 6px; padding: 5px 13px; font-size: 13px; font-weight: 600; cursor: pointer; }
-        .btn-green  { background: #dcfce7; color: #15803d; }
-        .btn-blue   { background: #dbeafe; color: #1d4ed8; }
-        .btn-purple { background: #ede9fe; color: #6d28d9; }
-        .btn-gray   { background: #f3f4f6; color: #6b7280; }
-        .btn-orange { background: #ffedd5; color: #c2410c; }
-        .btn-red    { background: #fee2e2; color: #b91c1c; }
-        .btn-gold   { background: #fef9c3; color: #854d0e; }
-        .btn:hover  { opacity: 0.8; }
+        .card-header { display: flex; justify-content: space-between; align-items: flex-start;
+                       gap: 10px; margin-bottom: 6px; }
+        .card-title { font-size: 15px; font-weight: 700; margin: 0; line-height: 1.3; }
+        .card-right { display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
+        .score { font-size: 17px; font-weight: 800; color: #16a34a; }
+
+        /* Status badges */
+        .badge { font-size: 10px; padding: 2px 7px; border-radius: 999px; font-weight: 700;
+                 white-space: nowrap; }
+        .badge-not_applied, .badge-not_reviewed { background: #f3f4f6; color: #9ca3af; }
+        .badge-interested  { background: #dbeafe; color: #1d4ed8; }
+        .badge-saved       { background: #ede9fe; color: #6d28d9; }
+        .badge-applied     { background: #dcfce7; color: #15803d; }
+        .badge-interview   { background: #ffedd5; color: #c2410c; }
+        .badge-offer       { background: #fef9c3; color: #854d0e; }
+        .badge-rejected    { background: #fee2e2; color: #b91c1c; }
+        .badge-closed      { background: #f3f4f6; color: #9ca3af; }
+
+        /* Card meta */
+        .card-meta { font-size: 13px; color: #555; line-height: 1.7; }
+        .card-meta a { color: #2563eb; text-decoration: none; }
+        .card-meta a:hover { text-decoration: underline; }
+        .dot { color: #d1d5db; margin: 0 4px; }
+        .muted { color: #aaa; font-size: 12px; }
+
+        /* Salary form */
+        .salary-form { display: flex; gap: 4px; align-items: center; margin-top: 5px; }
+        .salary-input { font-size: 12px; padding: 3px 8px; border: 1px solid #e5e7eb;
+                        border-radius: 5px; width: 190px; color: #111; }
+        .salary-input:focus { outline: none; border-color: #6366f1; }
+        .btn-set { background: white; border: 1px solid #e5e7eb; border-radius: 5px;
+                   padding: 3px 9px; font-size: 11px; font-weight: 600; cursor: pointer; color: #555; }
+        .btn-set:hover { background: #f3f4f6; }
+
+        /* Score chips */
+        .breakdown { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+        .chip { background: #f9fafb; border: 1px solid #f0f0f0; border-radius: 4px;
+                padding: 2px 7px; font-size: 11px; color: #777; }
+
+        /* Divider */
+        .divider { border: none; border-top: 1px solid #f3f4f6; margin: 10px 0 8px; }
+
+        /* Action row */
+        .actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .actions-right { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+
+        /* CTA - primary action */
+        .btn-cta { border: none; border-radius: 7px; padding: 7px 16px; font-size: 13px;
+                   font-weight: 700; cursor: pointer; }
+        .btn-cta-green  { background: #16a34a; color: white; }
+        .btn-cta-green:hover  { background: #15803d; }
+        .btn-cta-orange { background: #ea580c; color: white; }
+        .btn-cta-orange:hover { background: #c2410c; }
+        .btn-cta-gold   { background: #d97706; color: white; }
+        .btn-cta-gold:hover   { background: #b45309; }
+
+        /* Soft - secondary action */
+        .btn-soft { border: none; border-radius: 6px; padding: 5px 11px; font-size: 12px;
+                    font-weight: 600; cursor: pointer; }
+        .btn-soft-blue   { background: #dbeafe; color: #1d4ed8; }
+        .btn-soft-purple { background: #ede9fe; color: #6d28d9; }
+        .btn-soft-red    { background: #fee2e2; color: #b91c1c; }
+        .btn-soft-gray   { background: #f3f4f6; color: #6b7280; }
+
+        /* Ghost - dismiss */
+        .btn-ghost { background: none; border: none; padding: 5px 7px; font-size: 12px;
+                     color: #c4c4c4; cursor: pointer; border-radius: 5px; font-weight: 500; }
+        .btn-ghost:hover { background: #f3f4f6; color: #6b7280; }
+
+        /* AI link */
+        .ai-link { display: inline-block; text-decoration: none; font-size: 11px; font-weight: 700;
+                   color: #7c3aed; padding: 4px 9px; border: 1px solid #ddd8fe;
+                   border-radius: 5px; background: #faf5ff; white-space: nowrap; }
+        .ai-link:hover { background: #ede9fe; }
+
+        .empty-state { background: white; border: 1px solid #e5e7eb; border-radius: 10px;
+                       padding: 40px; text-align: center; }
+        .empty-state p { color: #888; margin: 0 0 6px; }
     </style>
 </head>
 <body>
+<div class="shell">
 
-    <div class="topbar">
-        <a href="/jobs">Jobs</a>
+    <!-- Nav -->
+    <nav class="nav">
+        <a href="/jobs" class="nav-brand">ROSE</a>
+        <a href="/jobs" class="active">Jobs</a>
         <a href="/tracker">Tracker</a>
+        <a href="/outreach">Outreach</a>
+        <a href="/contacts">Contacts</a>
         <a href="/profile">Profile</a>
-        <a href="/import/csv">Import CSV</a>
+        <div class="nav-spacer"></div>
         <a href="/settings">Settings</a>
+    </nav>
+
+    <!-- Import bar -->
+    <div class="import-bar">
+        <span class="import-label">Fetch</span>
         <form method="POST" action="/fetch/github?repo=simplify" style="display:inline">
-            <button type="submit" class="btn btn-blue">Fetch GitHub</button>
+            <button type="submit" class="btn-import">Internships</button>
         </form>
+        <form method="POST" action="/fetch/github?repo=new-grad" style="display:inline">
+            <button type="submit" class="btn-import">New Grad</button>
+        </form>
+        <form method="POST" action="/fetch/github?repo=speedyapply" style="display:inline">
+            <button type="submit" class="btn-import">SpeedyApply</button>
+        </form>
+        <form method="POST" action="/fetch/intern-list" style="display:inline">
+            <button type="submit" class="btn-import">Intern List</button>
+        </form>
+        <form method="POST" action="/fetch/newgrad-jobs" style="display:inline">
+            <button type="submit" class="btn-import">New Grad Jobs</button>
+        </form>
+        <a href="/import/csv" style="font-size:12px; color:#aaa; text-decoration:none; margin-left:6px;">+ CSV</a>
     </div>
 
-    <!-- Stats bar -->
+    <!-- Stats -->
     <div class="stats-bar">
         <div class="stat-box">
             <div class="stat-num">{{ stats.total_jobs }}</div>
@@ -92,7 +194,7 @@
         </div>
         <div class="stat-box good">
             <div class="stat-num">{{ stats.total_applied }}</div>
-            <div class="stat-label">Total Applied</div>
+            <div class="stat-label">Applied</div>
         </div>
         <div class="stat-box">
             <div class="stat-num">{{ stats.applied_week }}</div>
@@ -119,18 +221,18 @@
     <!-- Today's Plan -->
     {% if plan %}
     <div class="section">
-        <h2>Today's Recruiting Plan</h2>
+        <p class="section-title">Today's Plan</p>
         {% for item in plan %}
         <div class="plan-item">
             <span class="plan-num">{{ loop.index }}.</span>
             {% if item.action == "Apply" %}
-                <span class="plan-action apply">Apply</span>
-                <span class="plan-label"><a href="/jobs/{{ item.job_id }}/apply">{{ item.label }}</a></span>
+                <span class="plan-badge apply">Apply</span>
+                <span class="plan-label"><a href="/jobs/{{ item.job_id }}/apply" style="color:#111; text-decoration:none;">{{ item.label }}</a></span>
             {% elif item.action == "Follow Up" %}
-                <span class="plan-action follow">Follow Up</span>
+                <span class="plan-badge follow">Follow Up</span>
                 <span class="plan-label">{{ item.label }}</span>
             {% else %}
-                <span class="plan-action review">Review</span>
+                <span class="plan-badge review">Review</span>
                 <span class="plan-label">{{ item.label }}</span>
             {% endif %}
             <span class="plan-reason">{{ item.reason }}</span>
@@ -142,145 +244,192 @@
     <!-- Follow-ups Due -->
     {% if followups %}
     <div class="section">
-        <h2>Follow-ups Due ({{ followups | length }})</h2>
+        <p class="section-title">Follow-ups Due ({{ followups | length }})</p>
         {% for f in followups %}
         <div class="followup-item">
             <span class="followup-label">{{ f.company }} — {{ f.title }}</span>
-            <span class="followup-meta">Applied: {{ f.date_applied }}</span>
-            <span class="followup-meta">Due: {{ f.follow_up_date }}</span>
-            {% if f.url %}<a class="followup-meta" href="{{ f.url }}" target="_blank">→ Job Link</a>{% endif %}
+            <span class="followup-meta">Applied {{ f.date_applied }}</span>
+            <span class="followup-meta" style="color:#dc2626; font-weight:600;">Due {{ f.follow_up_date }}</span>
+            {% if f.url %}<a class="followup-meta" href="{{ f.url }}" target="_blank">→ Link</a>{% endif %}
         </div>
         {% endfor %}
     </div>
     {% endif %}
 
-    <h1>Ranked Jobs ({{ jobs | length }})</h1>
+    <!-- Job list -->
+    <p class="list-title">Ranked Jobs <span>({{ jobs | length }})</span></p>
 
     {% if jobs | length == 0 %}
-        <p>No jobs yet — click <strong>Fetch GitHub</strong> to import from the internship list.</p>
+    <div class="empty-state">
+        <p>No jobs yet.</p>
+        <p style="font-size:13px;">Use the <strong>Fetch</strong> buttons above to import from job lists.</p>
+    </div>
     {% endif %}
 
     {% for job in jobs %}
     {% set status = job.status or "not_applied" %}
     <div class="job-card">
-        <div class="job-header">
-            <h2 class="job-title">{{ loop.index }}. {{ job.company }} — {{ job.title }}</h2>
-            <div>
-                <span class="badge-status status-{{ status }}">{{ status | replace("_", " ") | title }}</span>
+
+        <!-- Header -->
+        <div class="card-header">
+            <h2 class="card-title">{{ loop.index }}. {{ job.company }} — {{ job.title }}</h2>
+            <div class="card-right">
+                <span class="badge badge-{{ status }}">{{ status | replace("_", " ") | title }}</span>
                 <span class="score">{{ job.final_score }}</span>
             </div>
         </div>
 
-        <div class="meta"><strong>Location:</strong> {{ job.location or "—" }}</div>
-        <div class="meta"><strong>Role Type:</strong> {{ job.role_type or "—" }}</div>
-        <div class="meta">
-            <strong>Salary:</strong>
-            {% if job.salary %}${{ job.salary }}{% else %}N/A{% endif %}
+        <!-- Meta -->
+        <div class="card-meta">
+            {{ job.location or "Unknown" }}
+            <span class="dot">·</span>{{ job.role_type or "—" }}
+            {% if job.pay_raw or job.salary %}
+            <span class="dot">·</span>
+            {% if job.pay_raw %}{{ job.pay_raw }}{% if job.salary %} <span class="muted">≈ ${{ "{:,}".format(job.salary) }}/yr</span>{% endif %}
+            {% else %}${{ "{:,}".format(job.salary) }}/yr{% endif %}
+            {% endif %}
+            <span class="dot">·</span><span class="muted">{{ job.source or "manual" }}</span>
+            {% if job.date_posted %}<span class="dot">·</span><span class="muted">{{ job.date_posted }}</span>{% endif %}
+            {% if job.url %}<span class="dot">·</span><a href="{{ job.url }}" target="_blank">Apply →</a>{% endif %}
         </div>
-        <div class="meta"><strong>Posted:</strong> {{ job.date_posted or "Unknown" }}</div>
-        <div class="meta"><strong>Source:</strong> {{ job.source or "manual" }}</div>
-        {% if job.url %}
-        <div class="meta"><a href="{{ job.url }}" target="_blank">→ Apply</a></div>
-        {% endif %}
+
         {% if status == "applied" and job.date_applied %}
-        <div class="meta">
-            <strong>Applied:</strong> {{ job.date_applied }}
-            {% if job.follow_up_date %} | <strong>Follow-up due:</strong> {{ job.follow_up_date }}{% endif %}
+        <div class="card-meta muted" style="margin-top:2px;">
+            Applied {{ job.date_applied }}{% if job.follow_up_date %} · Follow-up: <strong style="color:#111;">{{ job.follow_up_date }}</strong>{% endif %}
         </div>
         {% endif %}
 
+        <!-- Salary set -->
+        <form method="POST" action="/jobs/{{ job.id }}/set-salary" class="salary-form">
+            <input type="text" name="salary" class="salary-input"
+                   placeholder="{{ job.pay_raw or 'Set salary: 95000 or $45/hr' }}">
+            <button type="submit" class="btn-set">Set</button>
+        </form>
+
+        <!-- Score breakdown -->
         <div class="breakdown">
-            <span>Role: {{ job.role_score }}</span>
-            <span>Location: {{ job.location_score }}</span>
-            <span>Comp: {{ job.compensation_score }}</span>
-            <span>Co. Quality: {{ job.company_quality_score }}</span>
-            <span>Growth: {{ job.growth_score }}</span>
-            <span>Stability: {{ job.stability_score }}</span>
-            <span>Freshness: {{ job.freshness_score }}</span>
+            <span class="chip">Role {{ job.role_score }}</span>
+            <span class="chip">Location {{ job.location_score }}</span>
+            <span class="chip">Comp {{ job.compensation_score }}</span>
+            <span class="chip">Freshness {{ job.freshness_score }}</span>
         </div>
 
-        <!-- AI assistant link -->
-        <div style="margin-top: 10px;">
-            <a href="/jobs/{{ job.id }}/ai" class="btn btn-purple" style="display:inline-block; text-decoration:none; padding:5px 13px; font-size:13px; font-weight:600; border-radius:6px;">AI Assistant</a>
-        </div>
+        <hr class="divider">
 
-        <!-- Context-sensitive action buttons -->
+        <!-- Actions -->
         <div class="actions">
+
             {% if status in ["not_applied", "not_reviewed"] %}
                 <form method="POST" action="/jobs/{{ job.id }}/action">
-                    <input type="hidden" name="action" value="interested">
-                    <button class="btn btn-blue">Interested</button>
+                    <input type="hidden" name="action" value="apply">
+                    <button class="btn-cta btn-cta-green">Apply →</button>
                 </form>
                 <form method="POST" action="/jobs/{{ job.id }}/action">
-                    <input type="hidden" name="action" value="apply">
-                    <button class="btn btn-green">Mark Applied</button>
+                    <input type="hidden" name="action" value="interested">
+                    <button class="btn-soft btn-soft-blue">Interested</button>
                 </form>
                 <form method="POST" action="/jobs/{{ job.id }}/action">
                     <input type="hidden" name="action" value="save">
-                    <button class="btn btn-purple">Save</button>
+                    <button class="btn-soft btn-soft-purple">Save</button>
                 </form>
-                <form method="POST" action="/jobs/{{ job.id }}/action">
-                    <input type="hidden" name="action" value="skip">
-                    <button class="btn btn-gray">Skip</button>
-                </form>
+                <div class="actions-right">
+                    <form method="POST" action="/jobs/{{ job.id }}/action">
+                        <input type="hidden" name="action" value="skip">
+                        <button class="btn-ghost">Skip</button>
+                    </form>
+                    <form method="POST" action="/jobs/{{ job.id }}/action">
+                        <input type="hidden" name="action" value="close">
+                        <button class="btn-ghost">Closed</button>
+                    </form>
+                    <a href="/jobs/{{ job.id }}/ai" class="ai-link">AI →</a>
+                </div>
 
             {% elif status == "interested" %}
                 <form method="POST" action="/jobs/{{ job.id }}/action">
                     <input type="hidden" name="action" value="apply">
-                    <button class="btn btn-green">Mark Applied</button>
+                    <button class="btn-cta btn-cta-green">Apply →</button>
                 </form>
                 <form method="POST" action="/jobs/{{ job.id }}/action">
                     <input type="hidden" name="action" value="save">
-                    <button class="btn btn-purple">Save</button>
+                    <button class="btn-soft btn-soft-purple">Save</button>
                 </form>
-                <form method="POST" action="/jobs/{{ job.id }}/action">
-                    <input type="hidden" name="action" value="skip">
-                    <button class="btn btn-gray">Skip</button>
-                </form>
+                <div class="actions-right">
+                    <form method="POST" action="/jobs/{{ job.id }}/action">
+                        <input type="hidden" name="action" value="skip">
+                        <button class="btn-ghost">Skip</button>
+                    </form>
+                    <form method="POST" action="/jobs/{{ job.id }}/action">
+                        <input type="hidden" name="action" value="close">
+                        <button class="btn-ghost">Closed</button>
+                    </form>
+                    <a href="/jobs/{{ job.id }}/ai" class="ai-link">AI →</a>
+                </div>
 
             {% elif status == "saved" %}
                 <form method="POST" action="/jobs/{{ job.id }}/action">
                     <input type="hidden" name="action" value="apply">
-                    <button class="btn btn-green">Mark Applied</button>
+                    <button class="btn-cta btn-cta-green">Apply →</button>
                 </form>
                 <form method="POST" action="/jobs/{{ job.id }}/action">
                     <input type="hidden" name="action" value="interested">
-                    <button class="btn btn-blue">Interested</button>
+                    <button class="btn-soft btn-soft-blue">Interested</button>
                 </form>
-                <form method="POST" action="/jobs/{{ job.id }}/action">
-                    <input type="hidden" name="action" value="skip">
-                    <button class="btn btn-gray">Skip</button>
-                </form>
+                <div class="actions-right">
+                    <form method="POST" action="/jobs/{{ job.id }}/action">
+                        <input type="hidden" name="action" value="skip">
+                        <button class="btn-ghost">Skip</button>
+                    </form>
+                    <form method="POST" action="/jobs/{{ job.id }}/action">
+                        <input type="hidden" name="action" value="close">
+                        <button class="btn-ghost">Closed</button>
+                    </form>
+                    <a href="/jobs/{{ job.id }}/ai" class="ai-link">AI →</a>
+                </div>
 
             {% elif status == "applied" %}
                 <form method="POST" action="/jobs/{{ job.id }}/action">
                     <input type="hidden" name="action" value="interview">
-                    <button class="btn btn-orange">Got Interview</button>
+                    <button class="btn-cta btn-cta-orange">Got Interview →</button>
                 </form>
-                <form method="POST" action="/jobs/{{ job.id }}/action">
-                    <input type="hidden" name="action" value="rejected">
-                    <button class="btn btn-red">Rejected</button>
-                </form>
+                <div class="actions-right">
+                    <form method="POST" action="/jobs/{{ job.id }}/action">
+                        <input type="hidden" name="action" value="rejected">
+                        <button class="btn-ghost" style="color:#f87171;">Rejected</button>
+                    </form>
+                    <form method="POST" action="/jobs/{{ job.id }}/action">
+                        <input type="hidden" name="action" value="close">
+                        <button class="btn-ghost">Closed</button>
+                    </form>
+                    <a href="/jobs/{{ job.id }}/ai" class="ai-link">AI →</a>
+                </div>
 
             {% elif status == "interview" %}
                 <form method="POST" action="/jobs/{{ job.id }}/action">
                     <input type="hidden" name="action" value="offer">
-                    <button class="btn btn-gold">Got Offer!</button>
+                    <button class="btn-cta btn-cta-gold">Got Offer! 🎉</button>
                 </form>
-                <form method="POST" action="/jobs/{{ job.id }}/action">
-                    <input type="hidden" name="action" value="rejected">
-                    <button class="btn btn-red">Rejected</button>
-                </form>
+                <div class="actions-right">
+                    <form method="POST" action="/jobs/{{ job.id }}/action">
+                        <input type="hidden" name="action" value="rejected">
+                        <button class="btn-ghost" style="color:#f87171;">Rejected</button>
+                    </form>
+                    <a href="/jobs/{{ job.id }}/ai" class="ai-link">AI →</a>
+                </div>
 
-            {% elif status in ["offer", "rejected"] %}
+            {% elif status in ["offer", "rejected", "closed"] %}
                 <form method="POST" action="/jobs/{{ job.id }}/action">
                     <input type="hidden" name="action" value="restore">
-                    <button class="btn btn-gray">Restore</button>
+                    <button class="btn-soft btn-soft-gray">Restore</button>
                 </form>
+                <div class="actions-right">
+                    <a href="/jobs/{{ job.id }}/ai" class="ai-link">AI →</a>
+                </div>
             {% endif %}
+
         </div>
     </div>
     {% endfor %}
 
+</div>
 </body>
 </html>

@@ -1,0 +1,31 @@
+# secrets & config
+.env
+
+# database (personal job/application data)
+*.db
+*.db-shm
+*.db-wal
+
+# python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+
+# virtual environments
+venv/
+.venv/
+env/
+
+# editor
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# uploads / exports
+*.csv
+sample_jobs.csv

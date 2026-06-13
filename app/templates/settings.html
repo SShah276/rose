@@ -3,9 +3,18 @@
 <head>
     <title>Settings</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 40px; background: #f7f7f7; }
-        .topbar { margin-bottom: 24px; }
-        .topbar a { margin-right: 16px; text-decoration: none; color: #2563eb; font-weight: bold; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+               margin: 0; background: #f5f5f5; color: #111; }
+        .shell { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .nav { display: flex; align-items: center; gap: 4px; padding-bottom: 12px;
+               border-bottom: 1px solid #e5e7eb; margin-bottom: 24px; }
+        .nav-brand { font-weight: 800; font-size: 15px; color: #111; text-decoration: none;
+                     margin-right: 12px; letter-spacing: -0.3px; }
+        .nav a { text-decoration: none; color: #555; font-size: 13px; font-weight: 600;
+                 padding: 4px 9px; border-radius: 6px; }
+        .nav a:hover { background: #f3f4f6; color: #111; }
+        .nav a.active { background: #111; color: white; }
+        .nav-spacer { flex: 1; }
         .card { background: white; border: 1px solid #ddd; padding: 24px; border-radius: 10px; max-width: 480px; }
         .field { margin-bottom: 16px; }
         label { display: block; font-weight: bold; margin-bottom: 4px; }
@@ -15,12 +24,17 @@
     </style>
 </head>
 <body>
-    <div class="topbar">
+<div class="shell">
+    <nav class="nav">
+        <a href="/jobs" class="nav-brand">ROSE</a>
         <a href="/jobs">Jobs</a>
         <a href="/tracker">Tracker</a>
-        <a href="/import/csv">Import CSV</a>
-        <a href="/settings">Settings</a>
-    </div>
+        <a href="/outreach">Outreach</a>
+        <a href="/contacts">Contacts</a>
+        <a href="/profile">Profile</a>
+        <div class="nav-spacer"></div>
+        <a href="/settings" class="active">Settings</a>
+    </nav>
 
     <h1>Score Weights</h1>
     <p>Must sum to 1.0. Changes take effect immediately on the jobs dashboard.</p>
@@ -51,9 +65,6 @@
                 "role_weight": "Role Fit",
                 "location_weight": "Location",
                 "compensation_weight": "Compensation",
-                "company_quality_weight": "Company Quality",
-                "growth_weight": "Growth",
-                "stability_weight": "Stability",
                 "freshness_weight": "Freshness"
             } %}
             {% for key, label in labels.items() %}
@@ -65,5 +76,6 @@
             <button type="submit">Save Weights</button>
         </form>
     </div>
+</div>
 </body>
 </html>

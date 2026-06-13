@@ -1,5 +1,8 @@
 from datetime import date, timedelta
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI, Request, UploadFile, File
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -7,15 +10,24 @@ from fastapi.templating import Jinja2Templates
 from app.db import (
     init_db, get_all_jobs,
     update_application, get_followups_due, get_tracked_applications, get_stats,
-    get_setting, set_setting, upsert_job,
+    get_setting, set_setting, upsert_job, set_job_salary,
     reset_all_statuses, restore_skipped,
     get_profile, save_profile,
     get_ai_outputs, upsert_ai_output, save_ai_output_content, toggle_ai_output_approved,
+    get_all_contacts, get_contact, insert_contact, update_contact, delete_contact,
+    get_contacts_for_job, get_jobs_for_contact,
+    link_contact_to_job, unlink_contact_from_job, get_job_contact, update_job_contact,
+    get_outreach_queue,
 )
-from app.ai import generate_job_analysis, generate_cover_letter, generate_outreach
+from app.ai import (
+    generate_job_analysis, generate_cover_letter, generate_outreach,
+    generate_contact_outreach,
+)
 from app.scoring import rank_jobs
 from app.ingestion import import_jobs_from_csv_bytes, normalize_job
 from app.sources.github_source import GitHubSource, KNOWN_REPOS
+from app.sources.intern_list_source import InternListSource
+from app.sources.newgrad_jobs_source import NewGradJobsSource
 import urllib.request
 
 app = FastAPI()
@@ -84,7 +96,7 @@ def _build_daily_plan(ranked_jobs: list) -> list:
 def jobs_page(request: Request):
     jobs = get_all_jobs()
     ranked_jobs = rank_jobs(jobs)
-    visible = [j for j in ranked_jobs if (j.get("status") or "not_applied") != "skipped"]
+    visible = [j for j in ranked_jobs if (j.get("status") or "not_applied") not in ("skipped", "closed")]
     return templates.TemplateResponse(
         request=request,
         name="jobs.html",
@@ -111,11 +123,22 @@ async def job_action(job_id: int, request: Request):
         "rejected":   "rejected",
         "offer":      "offer",
         "restore":    "not_applied",
+        "close":      "closed",
     }
     if action == "apply":
         return RedirectResponse(url=f"/jobs/{job_id}/apply", status_code=303)
     if action in status_map:
         update_application(job_id, status=status_map[action])
+    return RedirectResponse(url="/jobs", status_code=303)
+
+
+@app.post("/jobs/{job_id}/set-salary")
+async def set_salary(job_id: int, request: Request):
+    form = await request.form()
+    raw = form.get("salary", "").strip()
+    from app.ingestion import parse_salary
+    salary = parse_salary(raw) if raw else None
+    set_job_salary(job_id, salary, pay_raw=raw)
     return RedirectResponse(url="/jobs", status_code=303)
 
 
@@ -225,10 +248,11 @@ def fetch_github(request: Request, repo: str = "simplify"):
                 "title":       raw.title,
                 "location":    raw.location,
                 "salary":      str(raw.salary or ""),
+                "pay_raw":     raw.pay_raw,
                 "url":         raw.url,
                 "description": raw.description,
                 "date_posted": raw.date_posted,
-            }, source=raw.source)
+            }, source=raw.source, job_type=raw.job_type)
             result = upsert_job(job_data)
             summary["inserted" if result == "inserted" else "updated"] += 1
         except Exception as e:
@@ -239,6 +263,68 @@ def fetch_github(request: Request, repo: str = "simplify"):
         request=request,
         name="import_result.html",
         context={"summary": summary, "filename": f"github/{repo}"}
+    )
+
+
+@app.post("/fetch/intern-list")
+def fetch_intern_list(request: Request):
+    source = InternListSource()
+    try:
+        raw_jobs = source.fetch_jobs()
+    except RuntimeError as e:
+        return templates.TemplateResponse(
+            request=request, name="import_result.html",
+            context={"summary": {"fetched": 0, "inserted": 0, "updated": 0, "skipped": 0, "errors": [str(e)]},
+                     "filename": "intern-list.com"}
+        )
+    summary = {"fetched": len(raw_jobs), "inserted": 0, "updated": 0, "skipped": 0, "errors": []}
+    for raw in raw_jobs:
+        try:
+            job_data = normalize_job(
+                {"company": raw.company, "title": raw.title, "location": raw.location,
+                 "salary": str(raw.salary or ""), "url": raw.url,
+                 "description": raw.description, "date_posted": raw.date_posted},
+                source=raw.source, job_type=raw.job_type,
+            )
+            result = upsert_job(job_data)
+            summary["inserted" if result == "inserted" else "updated"] += 1
+        except Exception as e:
+            summary["skipped"] += 1
+            summary["errors"].append(str(e))
+    return templates.TemplateResponse(
+        request=request, name="import_result.html",
+        context={"summary": summary, "filename": "intern-list.com"}
+    )
+
+
+@app.post("/fetch/newgrad-jobs")
+def fetch_newgrad_jobs(request: Request):
+    source = NewGradJobsSource()
+    try:
+        raw_jobs = source.fetch_jobs()
+    except RuntimeError as e:
+        return templates.TemplateResponse(
+            request=request, name="import_result.html",
+            context={"summary": {"fetched": 0, "inserted": 0, "updated": 0, "skipped": 0, "errors": [str(e)]},
+                     "filename": "newgrad-jobs.com"}
+        )
+    summary = {"fetched": len(raw_jobs), "inserted": 0, "updated": 0, "skipped": 0, "errors": []}
+    for raw in raw_jobs:
+        try:
+            job_data = normalize_job(
+                {"company": raw.company, "title": raw.title, "location": raw.location,
+                 "salary": str(raw.salary or ""), "url": raw.url,
+                 "description": raw.description, "date_posted": raw.date_posted},
+                source=raw.source, job_type=raw.job_type,
+            )
+            result = upsert_job(job_data)
+            summary["inserted" if result == "inserted" else "updated"] += 1
+        except Exception as e:
+            summary["skipped"] += 1
+            summary["errors"].append(str(e))
+    return templates.TemplateResponse(
+        request=request, name="import_result.html",
+        context={"summary": summary, "filename": "newgrad-jobs.com"}
     )
 
 
@@ -281,7 +367,10 @@ def job_ai_page(job_id: int, request: Request):
         context={
             "job": job,
             "outputs": get_ai_outputs(job_id),
+            "job_contacts": get_contacts_for_job(job_id),
+            "all_contacts": get_all_contacts(),
             "profile_set": bool(get_profile().get("name")),
+            "today": str(date.today()),
         }
     )
 
@@ -329,6 +418,173 @@ def ai_approve_output(job_id: int, output_id: int):
     return RedirectResponse(url=f"/jobs/{job_id}/ai", status_code=303)
 
 
+# ---------- contacts ----------
+
+@app.get("/contacts")
+def contacts_page(request: Request):
+    return templates.TemplateResponse(
+        request=request, name="contacts.html",
+        context={"contacts": get_all_contacts()}
+    )
+
+
+@app.get("/contacts/new")
+def contact_new_form(request: Request, job_id: int = None, relationship_type: str = "recruiter"):
+    return templates.TemplateResponse(
+        request=request, name="contact_form.html",
+        context={"contact": {}, "job_id": job_id, "relationship_type": relationship_type, "editing": False}
+    )
+
+
+@app.post("/contacts")
+async def create_contact(request: Request):
+    form = await request.form()
+    data = dict(form)
+    job_id = data.pop("job_id", None)
+    rel_type = data.pop("relationship_type", "recruiter")
+    contact_id = insert_contact(data)
+    if job_id:
+        link_contact_to_job(int(job_id), contact_id, rel_type)
+        return RedirectResponse(url=f"/jobs/{job_id}/ai", status_code=303)
+    return RedirectResponse(url="/contacts", status_code=303)
+
+
+@app.get("/contacts/{contact_id}/edit")
+def contact_edit_form(contact_id: int, request: Request):
+    contact = get_contact(contact_id)
+    if not contact:
+        return RedirectResponse(url="/contacts", status_code=303)
+    return templates.TemplateResponse(
+        request=request, name="contact_form.html",
+        context={"contact": contact, "job_id": None, "relationship_type": None, "editing": True}
+    )
+
+
+@app.post("/contacts/{contact_id}/edit")
+async def save_contact(contact_id: int, request: Request):
+    form = await request.form()
+    update_contact(contact_id, dict(form))
+    return RedirectResponse(url="/contacts", status_code=303)
+
+
+@app.post("/contacts/{contact_id}/delete")
+def remove_contact(contact_id: int):
+    delete_contact(contact_id)
+    return RedirectResponse(url="/contacts", status_code=303)
+
+
+# ---------- job ↔ contact linking ----------
+
+@app.post("/jobs/{job_id}/contacts/link")
+async def link_contact(job_id: int, request: Request):
+    form = await request.form()
+    contact_id = int(form.get("contact_id", 0))
+    rel_type = form.get("relationship_type", "recruiter")
+    if contact_id:
+        link_contact_to_job(job_id, contact_id, rel_type)
+    return RedirectResponse(url=f"/jobs/{job_id}/ai", status_code=303)
+
+
+@app.post("/jobs/{job_id}/contacts/{jc_id}/unlink")
+def unlink_contact(job_id: int, jc_id: int):
+    unlink_contact_from_job(jc_id)
+    return RedirectResponse(url=f"/jobs/{job_id}/ai", status_code=303)
+
+
+# ---------- outreach actions ----------
+
+@app.post("/job-contacts/{jc_id}/generate")
+def jc_generate_message(jc_id: int, request: Request):
+    jc = get_job_contact(jc_id)
+    if not jc:
+        return RedirectResponse(url="/outreach", status_code=303)
+
+    jobs = get_all_jobs()
+    job = next((j for j in jobs if j["id"] == jc["job_id"]), {})
+    contact = get_contact(jc["contact_id"])
+
+    error = None
+    try:
+        content = generate_contact_outreach(job, contact, jc["relationship_type"], get_profile())
+        update_job_contact(jc_id, status="drafted", message_content=content)
+    except Exception as e:
+        error = str(e)
+
+    if error:
+        return templates.TemplateResponse(
+            request=request, name="job_ai.html",
+            context={
+                "job": job, "outputs": get_ai_outputs(jc["job_id"]),
+                "job_contacts": get_contacts_for_job(jc["job_id"]),
+                "all_contacts": get_all_contacts(),
+                "profile_set": bool(get_profile().get("name")),
+                "today": str(date.today()), "error": error,
+            }
+        )
+    return RedirectResponse(url=f"/jobs/{jc['job_id']}/ai", status_code=303)
+
+
+@app.post("/job-contacts/{jc_id}/save-message")
+async def jc_save_message(jc_id: int, request: Request):
+    form = await request.form()
+    jc = get_job_contact(jc_id)
+    update_job_contact(jc_id, message_content=form.get("message_content", ""))
+    return RedirectResponse(url=f"/jobs/{jc['job_id']}/ai", status_code=303)
+
+
+@app.post("/job-contacts/{jc_id}/status")
+async def jc_update_status(jc_id: int, request: Request):
+    form = await request.form()
+    action = form.get("action", "")
+    jc = get_job_contact(jc_id)
+
+    if action == "sent":
+        sent_date = form.get("date_sent") or str(date.today())
+        try:
+            follow_up = str(date.fromisoformat(sent_date) + timedelta(days=7))
+        except ValueError:
+            follow_up = str(date.today() + timedelta(days=7))
+        update_job_contact(jc_id, status="sent", date_sent=sent_date, follow_up_date=follow_up)
+
+    elif action == "responded":
+        update_job_contact(jc_id, status="responded",
+                           response_notes=form.get("response_notes", ""))
+
+    elif action == "close":
+        update_job_contact(jc_id, status="closed")
+
+    return RedirectResponse(url=f"/jobs/{jc['job_id']}/ai", status_code=303)
+
+
+# ---------- outreach queue ----------
+
+@app.get("/outreach")
+def outreach_page(request: Request):
+    queue = get_outreach_queue()
+    # High-priority jobs with no contacts at all
+    jobs = get_all_jobs()
+    ranked = rank_jobs(jobs)
+    # Exclude jobs that already have any contact linked
+    from app.db import get_connection as _gc
+    conn = _gc()
+    cur = conn.cursor()
+    cur.execute("SELECT DISTINCT job_id FROM job_contacts")
+    all_linked = {r[0] for r in cur.fetchall()}
+    conn.close()
+
+    uncontacted = [
+        j for j in ranked
+        if j["id"] not in all_linked
+        and (j.get("status") or "not_applied") not in ("skipped", "rejected")
+        and j.get("final_score", 0) >= 75
+    ][:10]
+
+    return templates.TemplateResponse(
+        request=request, name="outreach.html",
+        context={**queue, "uncontacted": uncontacted, "today": str(date.today())}
+    )
+
+
 # ---------- test / admin resets ----------
 
 @app.post("/admin/reset-statuses")
@@ -344,9 +600,7 @@ def admin_restore_skipped():
 
 
 _WEIGHT_KEYS = [
-    "role_weight", "location_weight", "compensation_weight",
-    "company_quality_weight", "growth_weight", "stability_weight",
-    "freshness_weight",
+    "role_weight", "location_weight", "compensation_weight", "freshness_weight",
 ]
 
 

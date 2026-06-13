@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ROSE — {{ 'Edit' if editing else 'Add' }} Contact</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background: #f7f7f7; }
+        .topbar { margin-bottom: 24px; display: flex; gap: 16px; flex-wrap: wrap; }
+        .topbar a { text-decoration: none; color: #2563eb; font-weight: bold; }
+        .card { background: white; border: 1px solid #ddd; border-radius: 10px;
+                padding: 28px; max-width: 560px; }
+        .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        label { display: block; font-size: 13px; font-weight: 600; color: #444;
+                margin-bottom: 4px; margin-top: 14px; }
+        label:first-of-type { margin-top: 0; }
+        input[type="text"], input[type="email"], input[type="url"],
+        input[type="number"], select, textarea {
+            width: 100%; padding: 7px 10px; border: 1px solid #ccc; border-radius: 6px;
+            font-size: 13px; box-sizing: border-box;
+        }
+        textarea { resize: vertical; height: 70px; }
+        .hint { font-size: 11px; color: #999; margin-top: 3px; }
+        .actions { display: flex; gap: 10px; margin-top: 22px; align-items: center; }
+        .btn-save { background: #1d4ed8; color: white; border: none; border-radius: 7px;
+                    padding: 9px 22px; font-size: 14px; font-weight: bold; cursor: pointer; }
+        .btn-save:hover { background: #1e40af; }
+        .btn-cancel { color: #6b7280; text-decoration: none; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <a href="/contacts">← Contacts</a>
+        {% if job_id %}<a href="/jobs/{{ job_id }}/ai">← Back to Job</a>{% endif %}
+    </div>
+
+    <h1 style="margin-bottom: 20px;">{{ 'Edit' if editing else 'Add' }} Contact</h1>
+
+    <div class="card">
+        <form method="POST" action="{{ '/contacts/' + contact.id|string + '/edit' if editing else '/contacts' }}">
+            {% if job_id %}
+            <input type="hidden" name="job_id" value="{{ job_id }}">
+            <input type="hidden" name="relationship_type" value="{{ relationship_type or 'recruiter' }}">
+            {% endif %}
+
+            <div class="grid2">
+                <div>
+                    <label>Full Name *</label>
+                    <input type="text" name="name" value="{{ contact.get('name', '') }}" required>
+                </div>
+                <div>
+                    <label>Company *</label>
+                    <input type="text" name="company" value="{{ contact.get('company', '') }}" required>
+                </div>
+            </div>
+
+            <label>Title / Role</label>
+            <input type="text" name="title" value="{{ contact.get('title', '') }}"
+                   placeholder="Senior Technical Recruiter">
+
+            <div class="grid2">
+                <div>
+                    <label>Email</label>
+                    <input type="email" name="email" value="{{ contact.get('email', '') }}">
+                </div>
+                <div>
+                    <label>Source</label>
+                    <select name="source">
+                        {% for src in ['manual', 'linkedin', 'referral', 'recruiter_email', 'career_fair', 'other'] %}
+                        <option value="{{ src }}" {{ 'selected' if contact.get('source') == src else '' }}>
+                            {{ src | replace('_', ' ') | title }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <label>LinkedIn URL</label>
+            <input type="url" name="linkedin_url" value="{{ contact.get('linkedin_url', '') }}"
+                   placeholder="https://linkedin.com/in/...">
+
+            <label>Confidence Score</label>
+            <input type="number" name="confidence_score"
+                   value="{{ contact.get('confidence_score', 100) }}" min="1" max="100">
+            <div class="hint">1–100. Manual entry = 100. Use lower values for less certain contacts.</div>
+
+            <label>Notes</label>
+            <textarea name="notes" placeholder="Met at career fair. Mentioned SWE openings in Chicago.">{{ contact.get('notes', '') }}</textarea>
+
+            <div class="actions">
+                <button type="submit" class="btn-save">
+                    {{ 'Save Changes' if editing else 'Add Contact' }}
+                </button>
+                <a href="{{ '/contacts/' + contact.id|string + '/edit' if editing else '/contacts' }}"
+                   class="btn-cancel">Cancel</a>
+            </div>
+        </form>
+    </div>
+</body>
+</html>

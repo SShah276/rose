@@ -57,6 +57,8 @@
     <div class="topbar">
         <a href="/jobs">← Jobs</a>
         <a href="/tracker">Tracker</a>
+        <a href="/outreach">Outreach</a>
+        <a href="/contacts">Contacts</a>
         <a href="/profile">Profile</a>
     </div>
 
@@ -82,6 +84,101 @@
         <a href="/profile" style="font-weight:bold; color:#854d0e;">Set up your profile →</a>
     </div>
     {% endif %}
+
+    <!-- Contacts & Outreach -->
+    <div class="output-section" style="margin-bottom:20px;">
+        <div class="output-header">
+            <h3 class="output-title">Contacts & Outreach</h3>
+            <a href="/contacts/new?job_id={{ job.id }}&relationship_type=recruiter"
+               style="font-size:13px; color:#2563eb; text-decoration:none;">+ Add New Contact</a>
+        </div>
+
+        {% if job_contacts %}
+        {% for jc in job_contacts %}
+        <div style="border-bottom:1px solid #f0f0f0; padding:10px 0; display:flex; flex-wrap:wrap; gap:10px; align-items:flex-start;">
+            <div style="flex:1; min-width:180px;">
+                <strong>{{ jc.contact_name }}</strong>
+                <span style="font-size:11px; padding:2px 7px; border-radius:999px; font-weight:600; margin-left:6px;
+                    background:{% if jc.relationship_type=='alumni' %}#ede9fe{% elif jc.relationship_type=='hiring_manager' %}#ffedd5{% elif jc.relationship_type=='engineer' %}#dcfce7{% else %}#dbeafe{% endif %};
+                    color:{% if jc.relationship_type=='alumni' %}#6d28d9{% elif jc.relationship_type=='hiring_manager' %}#c2410c{% elif jc.relationship_type=='engineer' %}#15803d{% else %}#1d4ed8{% endif %};">
+                    {{ jc.relationship_type | replace('_',' ') }}
+                </span><br>
+                <span style="font-size:12px; color:#666;">{{ jc.contact_title or '' }}</span>
+                {% if jc.email %}<br><a href="mailto:{{ jc.email }}" style="font-size:12px;">{{ jc.email }}</a>{% endif %}
+                {% if jc.linkedin_url %} · <a href="{{ jc.linkedin_url }}" target="_blank" style="font-size:12px;">LinkedIn</a>{% endif %}
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                {% set s = jc.status %}
+                <span style="font-size:11px; padding:2px 8px; border-radius:999px; font-weight:600; width:fit-content;
+                    background:{% if s=='drafted' %}#fef9c3{% elif s=='sent' %}#dcfce7{% elif s=='responded' %}#ede9fe{% elif s=='closed' %}#f3f4f6{% else %}#f3f4f6{% endif %};
+                    color:{% if s=='drafted' %}#854d0e{% elif s=='sent' %}#15803d{% elif s=='responded' %}#6d28d9{% elif s=='closed' %}#6b7280{% else %}#6b7280{% endif %};">
+                    {{ s | replace('_',' ') | title }}
+                </span>
+
+                {% if s in ['not_contacted'] %}
+                <form method="POST" action="/job-contacts/{{ jc.id }}/generate">
+                    <button class="btn btn-ai" style="font-size:12px; padding:4px 10px;">Generate Message</button>
+                </form>
+                {% elif s == 'drafted' %}
+                <form method="POST" action="/job-contacts/{{ jc.id }}/status" style="display:flex; gap:6px; align-items:center;">
+                    <input type="hidden" name="action" value="sent">
+                    <input type="date" name="date_sent" value="{{ today }}"
+                           style="font-size:12px; padding:3px 7px; border:1px solid #ccc; border-radius:5px;">
+                    <button class="btn btn-green" style="font-size:12px; padding:4px 10px;">Mark Sent</button>
+                </form>
+                {% elif s == 'sent' %}
+                <form method="POST" action="/job-contacts/{{ jc.id }}/status" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                    <input type="hidden" name="action" value="responded">
+                    <input type="text" name="response_notes" placeholder="Response notes…"
+                           style="font-size:12px; padding:3px 7px; border:1px solid #ccc; border-radius:5px; width:160px;">
+                    <button class="btn btn-orange" style="font-size:12px; padding:4px 10px;">Mark Responded</button>
+                </form>
+                <span style="font-size:11px; color:#888;">Sent: {{ jc.date_sent }} | Follow-up: {{ jc.follow_up_date }}</span>
+                {% endif %}
+            </div>
+
+            {% if jc.message_content %}
+            <div style="width:100%; margin-top:6px;">
+                <form method="POST" action="/job-contacts/{{ jc.id }}/save-message">
+                    <textarea name="message_content" rows="5"
+                              style="width:100%; font-size:12px; font-family:'Courier New',monospace; padding:8px;
+                                     border:1px solid #e5e7eb; border-radius:6px; box-sizing:border-box; resize:vertical;">{{ jc.message_content }}</textarea>
+                    <button class="btn btn-save" style="margin-top:4px; font-size:12px; padding:4px 12px;">Save Edits</button>
+                </form>
+            </div>
+            {% endif %}
+
+            <form method="POST" action="/jobs/{{ job.id }}/contacts/{{ jc.id }}/unlink" style="align-self:flex-start;">
+                <button class="btn" style="background:#fee2e2;color:#b91c1c;font-size:11px;padding:3px 8px;">Unlink</button>
+            </form>
+        </div>
+        {% endfor %}
+        {% else %}
+        <p style="color:#888; font-size:13px; margin:4px 0 12px;">No contacts linked yet.</p>
+        {% endif %}
+
+        <!-- Link existing contact -->
+        {% if all_contacts %}
+        <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+            <form method="POST" action="/jobs/{{ job.id }}/contacts/link" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+                <select name="contact_id" style="font-size:13px; padding:5px 8px; border:1px solid #ccc; border-radius:6px;">
+                    {% for c in all_contacts %}
+                    <option value="{{ c.id }}">{{ c.name }} — {{ c.company }}</option>
+                    {% endfor %}
+                </select>
+                <select name="relationship_type" style="font-size:13px; padding:5px 8px; border:1px solid #ccc; border-radius:6px;">
+                    <option value="recruiter">Recruiter</option>
+                    <option value="hiring_manager">Hiring Manager</option>
+                    <option value="engineer">Engineer</option>
+                    <option value="alumni">Alumni</option>
+                    <option value="hr">HR</option>
+                </select>
+                <button class="btn btn-blue" style="font-size:13px;">Link Existing</button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
 
     <!-- Generate buttons -->
     <div class="generate-bar">

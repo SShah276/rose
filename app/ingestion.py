@@ -1,24 +1,59 @@
 import csv
 import io
+import re
 from datetime import date
 
 from app.db import upsert_job
 
+
 def clean_text(value):
     if value is None:
-        return "" 
+        return ""
     return str(value).strip()
 
-def parse_salary(value):
+
+def parse_salary(value) -> int | None:
+    """
+    Parse a salary string into an annual integer.
+
+    Handles:
+      - Hourly: "$25/hr", "$25.50 per hour", "25 hourly"  → × 2080
+      - Range:  "100K–120K", "$100,000-$120,000"          → midpoint
+      - Single: "95000", "$95k"
+    """
     if not value:
         return None
+    text = str(value).strip()
 
-    text = str(value).replace("$", "").replace(",", "").strip()
+    # Hourly rate
+    hourly = re.search(
+        r"\$?([\d,]+(?:\.\d+)?)\s*(?:/hr\b|per\s*hour|/hour\b|\bhourly\b)",
+        text, re.IGNORECASE,
+    )
+    if hourly:
+        rate = float(hourly.group(1).replace(",", ""))
+        return int(rate * 2080)
 
-    try:
-        return int(float(text))
-    except ValueError:
-        return None
+    # Strip $ and commas; expand K notation
+    clean = re.sub(r"\$|,", "", text)
+    clean = re.sub(r"(\d+(?:\.\d+)?)\s*[kK]\b",
+                   lambda m: str(int(float(m.group(1)) * 1000)), clean)
+
+    # Range: 100000-120000
+    rng = re.match(r"(\d+)\s*[-–]\s*(\d+)", clean)
+    if rng:
+        lo, hi = int(rng.group(1)), int(rng.group(2))
+        return (lo + hi) // 2
+
+    # Single value — take first number
+    num = re.match(r"[\d.]+", clean.strip())
+    if num:
+        try:
+            return int(float(num.group(0)))
+        except ValueError:
+            pass
+
+    return None
     
 def infer_role_type(title):
     title_lower = title.lower()
@@ -85,18 +120,22 @@ def make_dedupe_key(company, title, location):
     return f"{company.strip().lower()}|{title.strip().lower()}|{location.strip().lower()}"
 
 
-def normalize_job(raw_row, source="csv"):
-    company = clean_text(raw_row["company"])
-    title = clean_text(raw_row["title"])
-    location = clean_text(raw_row["location"])
+def normalize_job(raw_row, source="csv", job_type=""):
+    company = clean_text(raw_row.get("company", ""))
+    title = clean_text(raw_row.get("title", ""))
+    location = clean_text(raw_row.get("location", "")) or "Unknown"
 
-    if not company or not title or not location:
-        raise ValueError("Missing required fields: company, title, or location")
+    if not company or not title:
+        raise ValueError("Missing required fields: company or title")
 
-    salary = parse_salary(raw_row["salary"])
-    url = clean_text(raw_row["url"])
-    description = clean_text(raw_row["description"])
-    date_posted = clean_text(raw_row["date_posted"])
+    pay_raw = clean_text(raw_row.get("pay_raw", ""))
+    salary_str = clean_text(raw_row.get("salary", ""))
+    # pay_raw takes precedence; salary_str is the fallback (numeric string or raw)
+    salary = parse_salary(pay_raw or salary_str)
+
+    url = clean_text(raw_row.get("url", ""))
+    description = clean_text(raw_row.get("description", ""))
+    date_posted = clean_text(raw_row.get("date_posted", ""))
 
     role_type = infer_role_type(title)
     dedupe_key = make_dedupe_key(company, title, location)
@@ -106,6 +145,7 @@ def normalize_job(raw_row, source="csv"):
         "title": title,
         "location": location,
         "salary": salary,
+        "pay_raw": pay_raw,
         "url": url,
         "source": source,
         "source_url": "",
@@ -115,6 +155,8 @@ def normalize_job(raw_row, source="csv"):
         "date_posted": date_posted,
         "date_found": str(date.today()),
         "role_type": role_type,
+        "job_type": job_type or raw_row.get("job_type", ""),
+        "sponsorship": raw_row.get("sponsorship", "unknown"),
         "company_quality": 50,
         "growth_score": 50,
         "stability_score": 50,

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ROSE — Contacts</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background: #f7f7f7; }
+        .topbar { margin-bottom: 24px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+        .topbar a { text-decoration: none; color: #2563eb; font-weight: bold; }
+
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .page-header h1 { margin: 0; }
+
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px;
+                overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+        th { background: #f9fafb; padding: 10px 14px; text-align: left; font-size: 13px;
+             color: #555; border-bottom: 1px solid #e5e7eb; }
+        td { padding: 10px 14px; font-size: 14px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #fafafa; }
+
+        .badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; font-weight: 600; }
+        .badge-jobs { background: #dbeafe; color: #1d4ed8; }
+
+        .btn { border: none; border-radius: 6px; padding: 5px 12px; font-size: 12px;
+               font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }
+        .btn-blue   { background: #dbeafe; color: #1d4ed8; }
+        .btn-green  { background: #dcfce7; color: #15803d; }
+        .btn-red    { background: #fee2e2; color: #b91c1c; }
+        .btn-primary { background: #1d4ed8; color: white; padding: 8px 18px; font-size: 14px; border-radius: 7px; }
+
+        a { color: #2563eb; }
+        .empty { text-align: center; padding: 48px; color: #888; background: white;
+                 border-radius: 10px; border: 2px dashed #e5e7eb; }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <a href="/jobs">Jobs</a>
+        <a href="/tracker">Tracker</a>
+        <a href="/outreach">Outreach</a>
+        <a href="/contacts">Contacts</a>
+        <a href="/profile">Profile</a>
+        <a href="/settings">Settings</a>
+    </div>
+
+    <div class="page-header">
+        <h1>Contacts ({{ contacts | length }})</h1>
+        <a href="/contacts/new" class="btn btn-primary">+ Add Contact</a>
+    </div>
+
+    {% if contacts | length == 0 %}
+    <div class="empty">
+        <p>No contacts yet.</p>
+        <p>Add contacts manually, or click <strong>AI Assistant</strong> on any job and add a contact there.</p>
+        <a href="/contacts/new" class="btn btn-primary" style="margin-top:12px;">+ Add First Contact</a>
+    </div>
+    {% else %}
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Title</th>
+                <th>Company</th>
+                <th>Email</th>
+                <th>LinkedIn</th>
+                <th>Jobs</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in contacts %}
+            <tr>
+                <td><strong>{{ c.name }}</strong></td>
+                <td>{{ c.title or "—" }}</td>
+                <td>{{ c.company }}</td>
+                <td>
+                    {% if c.email %}
+                        <a href="mailto:{{ c.email }}">{{ c.email }}</a>
+                    {% else %}—{% endif %}
+                </td>
+                <td>
+                    {% if c.linkedin_url %}
+                        <a href="{{ c.linkedin_url }}" target="_blank">LinkedIn →</a>
+                    {% else %}—{% endif %}
+                </td>
+                <td>
+                    <span class="badge badge-jobs">{{ c.linked_jobs }} job{{ 's' if c.linked_jobs != 1 else '' }}</span>
+                </td>
+                <td style="display:flex; gap:6px;">
+                    <a href="/contacts/{{ c.id }}/edit" class="btn btn-blue">Edit</a>
+                    <form method="POST" action="/contacts/{{ c.id }}/delete"
+                          onsubmit="return confirm('Delete {{ c.name }}?')">
+                        <button class="btn btn-red">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</body>
+</html>

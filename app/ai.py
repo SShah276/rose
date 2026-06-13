@@ -131,6 +131,57 @@ Output only the letter body — no salutation, no headers, no sign-off."""
     return resp.content[0].text
 
 
+def generate_contact_outreach(job: dict, contact: dict, relationship_type: str, profile: dict) -> str:
+    """Personalized message to a specific contact about a specific job."""
+    client = _get_client()
+    system = _SYSTEM_BASE + f"\n\nCandidate Profile:\n{_format_profile(profile)}"
+
+    rel_map = {
+        "recruiter":       "a company recruiter",
+        "hiring_manager":  "the hiring manager for this role",
+        "engineer":        "a software engineer on the team",
+        "alumni":          "a university alumnus who works there",
+        "hr":              "an HR professional",
+    }
+    rel_desc = rel_map.get(relationship_type, "a professional contact")
+
+    prompt = f"""Write an outreach message to {rel_desc} about an internship.
+
+Contact:
+Name: {contact.get('name', '?')}
+Title: {contact.get('title') or 'Unknown'}
+Company: {contact.get('company', '?')}
+
+Job:
+Title: {job.get('title', '?')}
+Company: {job.get('company', '?')}
+Role Type: {job.get('role_type', '?')}
+
+Generate two versions separated by "---":
+
+**LinkedIn Message** (under 300 characters, no line breaks)
+[Address by first name. Reference their specific role. One clear ask.]
+
+---
+
+**Email**
+Subject: [concise subject line]
+
+[P1: specific hook — something about them, their work, or the company that's not generic]
+[P2: your single most relevant experience/project in 2 sentences with a concrete result]
+[P3: clear one-sentence ask]
+
+Rules: No "I hope this message finds you well." No "I came across your profile." No "I am very passionate about." Be direct and warm."""
+
+    resp = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=600,
+        system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return resp.content[0].text
+
+
 def generate_outreach(job: dict, profile: dict) -> str:
     client = _get_client()
     system = _SYSTEM_BASE + f"\n\nCandidate Profile:\n{_format_profile(profile)}"

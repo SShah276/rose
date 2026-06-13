@@ -3,13 +3,10 @@ from app.db import get_setting
 
 
 _DEFAULT_WEIGHTS = {
-    "role_weight":            0.27,
-    "location_weight":        0.19,
-    "compensation_weight":    0.19,
-    "company_quality_weight": 0.15,
-    "growth_weight":          0.07,
-    "stability_weight":       0.04,
-    "freshness_weight":       0.09,
+    "role_weight":         0.40,
+    "location_weight":     0.25,
+    "compensation_weight": 0.25,
+    "freshness_weight":    0.10,
 }
 
 
@@ -21,6 +18,51 @@ def _load_weights() -> dict:
         except (ValueError, TypeError):
             weights[key] = default
     return weights
+
+
+def _score_location(location: str) -> int:
+    loc = location.lower().strip()
+    if not loc or loc == "unknown":
+        return 50
+    if "remote" in loc:
+        return 85
+    if loc in ("hybrid", "flexible"):
+        return 80
+    if "united states" in loc or loc in ("us", "usa"):
+        return 75
+    if "multiple" in loc:
+        return 70
+    if "chicago" in loc:
+        return 99
+    if "new york" in loc or "nyc" in loc:
+        return 96
+    if "seattle" in loc or "bellevue" in loc:
+        return 93
+    if "austin" in loc:
+        return 93
+    if "boston" in loc or "cambridge, ma" in loc:
+        return 93
+    if "atlanta" in loc:
+        return 90
+    if "denver" in loc or "boulder" in loc:
+        return 90
+    if "san francisco" in loc:
+        return 87
+    if any(c in loc for c in ("santa clara", "san jose", "sunnyvale", "palo alto", "berkeley")):
+        return 85
+    if "los angeles" in loc:
+        return 83
+    if "san diego" in loc:
+        return 85
+    if "miami" in loc:
+        return 83
+    if "raleigh" in loc or "durham" in loc:
+        return 83
+    if "pittsburgh" in loc:
+        return 80
+    if "washington" in loc and ("dc" in loc or "d.c" in loc):
+        return 79
+    return 50
 
 
 def calculate_job_score(job, weights: dict):
@@ -58,38 +100,8 @@ def calculate_job_score(job, weights: dict):
         "Other": 60
     }
 
-    location_scores = {
-        "Chicago": 99,
-        "New York": 96,
-        "Remote": 85,
-
-        # California
-        "San Francisco": 87,
-        "Santa Clara": 85,
-        "Los Angeles": 83,
-        "San Jose": 85,
-        "Sunnyvale": 85,
-        "Palo Alto": 85,
-        "Berkeley": 85,
-        "San Diego": 85,
-
-        # Major US Tech Hubs
-        "Seattle": 93,
-        "Bellevue": 93,
-        "Austin": 93,
-        "Boston": 93,
-
-        # Secondary Hubs
-        "Atlanta": 90,
-        "Denver/Boulder": 90,
-        "Miami": 83,
-        "Pittsburgh": 80,
-        "Washington DC": 79,
-        "Raleigh/Durham": 83,
-    }
-
     role_score = role_scores.get(job["role_type"], 50)
-    location_score = location_scores.get(job["location"], 50)
+    location_score = _score_location(job.get("location") or "")
 
     salary = job["salary"] or 0
     if salary >= 130000:
@@ -107,13 +119,9 @@ def calculate_job_score(job, weights: dict):
     if salary == 0:
         compensation_score = 75
 
-    cali_cities = ["San Francisco", "Santa Clara", "San Jose", "Sunnyvale", "Palo Alto", "Berkeley"]
-    if job["location"] in cali_cities:
+    _CALI = ["san francisco", "santa clara", "san jose", "sunnyvale", "palo alto", "berkeley"]
+    if any(c in (job.get("location") or "").lower() for c in _CALI):
         compensation_score -= 5
-
-    company_quality_score = job["company_quality"]
-    growth_score = job["growth_score"]
-    stability_score = job["stability_score"]
 
     if job.get("date_posted"):
         try:
@@ -137,22 +145,16 @@ def calculate_job_score(job, weights: dict):
         freshness_score = 50
 
     final_score = (
-        role_score              * weights["role_weight"] +
-        location_score          * weights["location_weight"] +
-        compensation_score      * weights["compensation_weight"] +
-        company_quality_score   * weights["company_quality_weight"] +
-        growth_score            * weights["growth_weight"] +
-        stability_score         * weights["stability_weight"] +
-        freshness_score         * weights["freshness_weight"]
+        role_score         * weights["role_weight"] +
+        location_score     * weights["location_weight"] +
+        compensation_score * weights["compensation_weight"] +
+        freshness_score    * weights["freshness_weight"]
     )
 
     return {
         "role_score": role_score,
         "location_score": location_score,
         "compensation_score": compensation_score,
-        "company_quality_score": company_quality_score,
-        "growth_score": growth_score,
-        "stability_score": stability_score,
         "freshness_score": freshness_score,
         "final_score": round(final_score, 2)
     }

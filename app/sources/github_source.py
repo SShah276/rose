@@ -6,21 +6,38 @@ from html.parser import HTMLParser
 from app.sources.base import JobSource, RawJob
 
 
+# Each entry: url, format ("html" | "markdown"), job_type
 KNOWN_REPOS = {
-    "simplify": "https://raw.githubusercontent.com/SimplifyJobs/Summer2026-Internships/dev/README.md",
+    "simplify": {
+        "url":      "https://raw.githubusercontent.com/SimplifyJobs/Summer2026-Internships/dev/README.md",
+        "format":   "html",
+        "job_type": "internship",
+    },
+    "new-grad": {
+        "url":      "https://raw.githubusercontent.com/SimplifyJobs/New-Grad-Positions/dev/README.md",
+        "format":   "html",
+        "job_type": "new_grad",
+    },
+    "speedyapply": {
+        "url":      "https://raw.githubusercontent.com/speedyapply/2026-SWE-College-Jobs/main/README.md",
+        "format":   "markdown",
+        "job_type": "internship",
+    },
 }
 
+
+# ── HTML table parser ─────────────────────────────────────────────────────────
 
 class _TableParser(HTMLParser):
     """Walks all HTML tables in a document, collecting (header, rows) pairs."""
 
     def __init__(self):
         super().__init__()
-        self.tables = []           # list of (header: list[str], rows: list[list[dict]])
+        self.tables = []
         self._header = []
         self._rows = []
         self._current_row = []
-        self._current_cell = None  # {"text": str, "href": str} while inside a cell
+        self._current_cell = None
         self._in_thead = False
 
     def handle_starttag(self, tag, attrs):
@@ -36,7 +53,6 @@ class _TableParser(HTMLParser):
             self._current_cell = {"text": "", "href": ""}
         elif tag == "a" and self._current_cell is not None:
             href = attrs_dict.get("href", "")
-            # Keep only the first href in each cell (the direct apply link)
             if href and not self._current_cell["href"]:
                 self._current_cell["href"] = href
 
@@ -64,7 +80,14 @@ class _TableParser(HTMLParser):
             self._current_cell["text"] += data
 
 
-def _parse_html_tables(html: str, source_name: str) -> list[RawJob]:
+def _age_to_date(age_raw: str) -> str:
+    m = re.match(r"^(\d+)d$", age_raw)
+    if m:
+        return str(date.today() - timedelta(days=int(m.group(1))))
+    return age_raw
+
+
+def _parse_html_tables(html: str, source_name: str, job_type: str) -> list[RawJob]:
     parser = _TableParser()
     parser.feed(html)
 
@@ -82,7 +105,6 @@ def _parse_html_tables(html: str, source_name: str) -> list[RawJob]:
             row_dict = {header[i]: row[i] for i in range(min(len(header), len(row)))}
             all_text = " ".join(cell["text"] for cell in row)
 
-            # Company — handle ↳ continuation rows
             company_cell = row_dict.get("company", {"text": "", "href": ""})
             company_raw = company_cell["text"].strip()
             if company_raw.startswith("↳"):
@@ -93,31 +115,22 @@ def _parse_html_tables(html: str, source_name: str) -> list[RawJob]:
             else:
                 continue
 
-            # Role/title
             role_key = next((k for k in ("role", "title", "position") if k in row_dict), None)
             role_cell = row_dict[role_key] if role_key else {"text": "", "href": ""}
             title_text = role_cell["text"].strip()
             apply_url = role_cell["href"]
 
-            # Apply URL falls back to the dedicated application column
             if not apply_url:
                 app_key = next((k for k in ("application", "application/link", "link", "apply") if k in row_dict), None)
                 if app_key:
                     apply_url = row_dict[app_key]["href"]
 
-            location_cell = row_dict.get("location", {"text": "", "href": ""})
-            location = location_cell["text"].strip()
+            location = row_dict.get("location", {"text": "", "href": ""})["text"].strip()
 
-            # Age column uses "Xd" format (e.g. "0d", "14d") — convert to ISO date
             age_key = next((k for k in ("age", "date posted", "date") if k in row_dict), None)
             age_raw = row_dict[age_key]["text"].strip() if age_key else ""
-            age_match = re.match(r"^(\d+)d$", age_raw)
-            if age_match:
-                date_posted = str(date.today() - timedelta(days=int(age_match.group(1))))
-            else:
-                date_posted = age_raw
+            date_posted = _age_to_date(age_raw)
 
-            # Skip closed/locked roles and blank titles
             if "🔒" in all_text or not title_text:
                 continue
 
@@ -128,10 +141,134 @@ def _parse_html_tables(html: str, source_name: str) -> list[RawJob]:
                 url=apply_url,
                 date_posted=date_posted,
                 source=source_name,
+                job_type=job_type,
+                pay_raw="",
             ))
 
     return jobs
 
+
+# ── Markdown pipe table parser ────────────────────────────────────────────────
+
+def _md_cells(line: str) -> list[str]:
+    """Split '| A | B | C |' into ['A', 'B', 'C']."""
+    parts = line.split("|")
+    return [p.strip() for p in parts[1:-1]]
+
+
+def _is_separator(line: str) -> bool:
+    return bool(re.match(r"^\|[-:\s|]+\|$", line.strip()))
+
+
+def _clean_text(raw: str) -> str:
+    """Strip HTML tags and markdown bold/italic markers, return plain text."""
+    text = re.sub(r"<[^>]+>", "", raw)   # strip HTML tags
+    text = re.sub(r"\*+", "", text)       # strip ** bold / * italic
+    return text.strip()
+
+
+def _md_link(cell: str) -> tuple[str, str]:
+    """
+    Return (plain_text, href) from a cell that may contain:
+      - Markdown link:  [**Company**](https://...)
+      - HTML anchor:    <a href="https://..."><strong>Company</strong></a>
+      - Plain text:     Company
+    """
+    # Markdown link [text](url)
+    m = re.search(r"\[([^\]]+)\]\(([^)]+)\)", cell)
+    if m:
+        return _clean_text(m.group(1)), m.group(2).strip()
+
+    # HTML anchor href
+    href_m = re.search(r'href=["\']([^"\']+)["\']', cell)
+    href = href_m.group(1).strip() if href_m else ""
+
+    return _clean_text(cell), href
+
+
+def _parse_markdown_tables(text: str, source_name: str, job_type: str) -> list[RawJob]:
+    jobs: list[RawJob] = []
+    table_block: list[str] = []
+
+    def _flush(block: list[str]) -> list[RawJob]:
+        if len(block) < 2:
+            return []
+        header_line = block[0]
+        if _is_separator(header_line):
+            return []
+        headers = [h.lower() for h in _md_cells(header_line)]
+        result: list[RawJob] = []
+        last_company = ""
+
+        for line in block[1:]:
+            if _is_separator(line):
+                continue
+            cells = _md_cells(line)
+            if len(cells) < len(headers):
+                continue
+            row = dict(zip(headers, cells))
+
+            # Company
+            company_text, _ = _md_link(row.get("company", ""))
+            if company_text.startswith("↳") or not company_text:
+                company = last_company
+            else:
+                company = company_text
+                last_company = company
+
+            # Title / apply URL
+            title_key = next((k for k in ("position", "role", "title") if k in row), None)
+            title_cell = row.get(title_key, "") if title_key else ""
+            title, apply_url = _md_link(title_cell)
+
+            if not apply_url:
+                url_key = next((k for k in ("posting", "application", "apply", "link") if k in row), None)
+                if url_key:
+                    _, apply_url = _md_link(row[url_key])
+
+            # Location
+            location = row.get("location", "").strip() or "Unknown"
+
+            # Salary
+            sal_key = next((k for k in ("salary", "pay", "compensation") if k in row), None)
+            pay_raw = row.get(sal_key, "").strip() if sal_key else ""
+
+            # Age → date
+            age_key = next((k for k in ("age", "date posted", "date") if k in row), None)
+            age_raw = row.get(age_key, "").strip() if age_key else ""
+            date_posted = _age_to_date(age_raw)
+
+            if "🔒" in " ".join(cells) or not title:
+                continue
+
+            result.append(RawJob(
+                company=company,
+                title=title,
+                location=location,
+                url=apply_url,
+                date_posted=date_posted,
+                source=source_name,
+                job_type=job_type,
+                pay_raw=pay_raw,
+            ))
+        return result
+
+    for line in text.splitlines():
+        stripped = line.strip()
+        if re.match(r"^\|.+\|$", stripped):
+            table_block.append(stripped)
+        else:
+            if table_block:
+                jobs.extend(_flush(table_block))
+                table_block = []
+
+    if table_block:
+        jobs.extend(_flush(table_block))
+
+    return jobs
+
+
+# ── Source class ──────────────────────────────────────────────────────────────
 
 class GitHubSource(JobSource):
     name = "github"
@@ -140,12 +277,18 @@ class GitHubSource(JobSource):
         if repo_key not in KNOWN_REPOS:
             raise ValueError(f"Unknown repo: '{repo_key}'. Options: {list(KNOWN_REPOS)}")
         self.repo_key = repo_key
-        self.url = KNOWN_REPOS[repo_key]
+        cfg = KNOWN_REPOS[repo_key]
+        self.url      = cfg["url"]
+        self.format   = cfg["format"]
+        self.job_type = cfg["job_type"]
 
     def fetch_jobs(self) -> list[RawJob]:
         try:
-            with urllib.request.urlopen(self.url, timeout=10) as resp:
-                html = resp.read().decode("utf-8")
+            with urllib.request.urlopen(self.url, timeout=15) as resp:
+                text = resp.read().decode("utf-8")
         except Exception as e:
             raise RuntimeError(f"Failed to fetch '{self.repo_key}': {e}")
-        return _parse_html_tables(html, self.repo_key)
+
+        if self.format == "markdown":
+            return _parse_markdown_tables(text, self.repo_key, self.job_type)
+        return _parse_html_tables(text, self.repo_key, self.job_type)

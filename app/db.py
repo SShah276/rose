@@ -18,7 +18,21 @@ def _migrate_v3(conn):
         try:
             cursor.execute(f"ALTER TABLE applications ADD COLUMN {col} {typedef}")
         except sqlite3.OperationalError:
-            pass  # Column already exists
+            pass
+
+
+def _migrate_v6(conn):
+    """Add V6 foundation columns: job_type, sponsorship, pay_raw on jobs table."""
+    cursor = conn.cursor()
+    for col, typedef in [
+        ("job_type",    "TEXT DEFAULT ''"),
+        ("sponsorship", "TEXT DEFAULT 'unknown'"),
+        ("pay_raw",     "TEXT DEFAULT ''"),
+    ]:
+        try:
+            cursor.execute(f"ALTER TABLE jobs ADD COLUMN {col} {typedef}")
+        except sqlite3.OperationalError:
+            pass
 
 
 def init_db():
@@ -69,19 +83,26 @@ def init_db():
     )
     """)
 
-    _setting_defaults = {
-        "role_weight":             "0.27",
-        "location_weight":         "0.19",
-        "compensation_weight":     "0.19",
-        "company_quality_weight":  "0.15",
-        "growth_weight":           "0.07",
-        "stability_weight":        "0.04",
-        "freshness_weight":        "0.09",
+    _weight_defaults = {
+        "role_weight":         "0.40",
+        "location_weight":     "0.25",
+        "compensation_weight": "0.25",
+        "freshness_weight":    "0.10",
     }
-    for key, value in _setting_defaults.items():
-        cursor.execute(
-            "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (key, value)
-        )
+    # Remove deprecated weight keys from old 7-factor scoring
+    cursor.execute(
+        "DELETE FROM settings WHERE key IN ('company_quality_weight', 'growth_weight', 'stability_weight')"
+    )
+    # Seed missing weight keys
+    for key, value in _weight_defaults.items():
+        cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (key, value))
+    # If existing weights don't sum to ~1.0 (e.g. leftover from 7-factor era), reset to new defaults
+    rows = cursor.execute(
+        "SELECT value FROM settings WHERE key IN ('role_weight','location_weight','compensation_weight','freshness_weight')"
+    ).fetchall()
+    if rows and abs(sum(float(r[0]) for r in rows) - 1.0) > 0.05:
+        for key, value in _weight_defaults.items():
+            cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, value))
 
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS candidate_profile (
@@ -125,7 +146,41 @@ def init_db():
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_ai_outputs_job_type ON ai_outputs(job_id, type)"
     )
 
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS contacts (
+        id               INTEGER PRIMARY KEY AUTOINCREMENT,
+        company          TEXT NOT NULL,
+        name             TEXT NOT NULL,
+        title            TEXT,
+        email            TEXT,
+        linkedin_url     TEXT,
+        source           TEXT DEFAULT 'manual',
+        confidence_score INTEGER DEFAULT 100,
+        notes            TEXT,
+        created_at       TEXT NOT NULL
+    )
+    """)
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS job_contacts (
+        id                INTEGER PRIMARY KEY AUTOINCREMENT,
+        job_id            INTEGER NOT NULL,
+        contact_id        INTEGER NOT NULL,
+        relationship_type TEXT DEFAULT 'recruiter',
+        status            TEXT DEFAULT 'not_contacted',
+        message_content   TEXT,
+        date_sent         TEXT,
+        follow_up_date    TEXT,
+        response_notes    TEXT,
+        created_at        TEXT NOT NULL,
+        FOREIGN KEY(job_id)    REFERENCES jobs(id),
+        FOREIGN KEY(contact_id) REFERENCES contacts(id),
+        UNIQUE(job_id, contact_id)
+    )
+    """)
+
     _migrate_v3(conn)
+    _migrate_v6(conn)
     conn.commit()
     conn.close()
 
@@ -183,12 +238,15 @@ def insert_job(job_data):
         date_posted,
         date_found,
         role_type,
+        job_type,
+        sponsorship,
+        pay_raw,
         company_quality,
         growth_score,
         stability_score,
         is_active
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         job_data["company"],
         job_data["title"],
@@ -203,6 +261,9 @@ def insert_job(job_data):
         job_data.get("date_posted"),
         job_data.get("date_found", str(date.today())),
         job_data.get("role_type"),
+        job_data.get("job_type", ""),
+        job_data.get("sponsorship", "unknown"),
+        job_data.get("pay_raw", ""),
         job_data.get("company_quality", 50),
         job_data.get("growth_score", 50),
         job_data.get("stability_score", 50),
@@ -239,6 +300,9 @@ def update_job_by_dedupe_key(dedupe_key, job_data):
         date_posted = ?,
         date_found = ?,
         role_type = ?,
+        job_type = ?,
+        sponsorship = ?,
+        pay_raw = ?,
         company_quality = ?,
         growth_score = ?,
         stability_score = ?,
@@ -257,6 +321,9 @@ def update_job_by_dedupe_key(dedupe_key, job_data):
         job_data.get("date_posted"),
         job_data.get("date_found", str(date.today())),
         job_data.get("role_type"),
+        job_data.get("job_type", ""),
+        job_data.get("sponsorship", "unknown"),
+        job_data.get("pay_raw", ""),
         job_data.get("company_quality", 50),
         job_data.get("growth_score", 50),
         job_data.get("stability_score", 50),
@@ -277,6 +344,14 @@ def upsert_job(job_data):
     else:
         insert_job(job_data)
         return "inserted"
+
+
+def set_job_salary(job_id: int, salary: int | None, pay_raw: str = ""):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE jobs SET salary = ?, pay_raw = ? WHERE id = ?", (salary, pay_raw, job_id))
+    conn.commit()
+    conn.close()
 
 
 def update_application(job_id: int, **fields):
@@ -327,14 +402,15 @@ def get_tracked_applications() -> list:
           AND jobs.is_active = 1
         ORDER BY
           CASE applications.status
-            WHEN 'interview' THEN 1
-            WHEN 'offer'     THEN 2
-            WHEN 'applied'   THEN 3
+            WHEN 'interview'  THEN 1
+            WHEN 'offer'      THEN 2
+            WHEN 'applied'    THEN 3
             WHEN 'interested' THEN 4
-            WHEN 'saved'     THEN 5
-            WHEN 'rejected'  THEN 6
-            WHEN 'skipped'   THEN 7
-            ELSE 8
+            WHEN 'saved'      THEN 5
+            WHEN 'rejected'   THEN 6
+            WHEN 'closed'     THEN 7
+            WHEN 'skipped'    THEN 8
+            ELSE 9
           END,
           applications.date_applied DESC
     """)
@@ -508,3 +584,202 @@ def toggle_ai_output_approved(output_id: int):
     cursor.execute("UPDATE ai_outputs SET approved = 1 - approved WHERE id = ?", (output_id,))
     conn.commit()
     conn.close()
+
+
+# ---------- contacts ----------
+
+_CONTACT_FIELDS = ["company", "name", "title", "email", "linkedin_url", "source", "confidence_score", "notes"]
+
+
+def get_all_contacts() -> list:
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT c.*, COUNT(jc.id) as linked_jobs
+        FROM contacts c
+        LEFT JOIN job_contacts jc ON jc.contact_id = c.id
+        GROUP BY c.id
+        ORDER BY c.company, c.name
+    """)
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_contact(contact_id: int) -> dict:
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM contacts WHERE id = ?", (contact_id,))
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else {}
+
+
+def insert_contact(data: dict) -> int:
+    safe = {k: data.get(k, "") for k in _CONTACT_FIELDS}
+    safe["confidence_score"] = int(safe.get("confidence_score") or 100)
+    safe["created_at"] = str(date.today())
+    conn = get_connection()
+    cursor = conn.cursor()
+    cols = ", ".join(safe.keys())
+    placeholders = ", ".join("?" for _ in safe)
+    cursor.execute(f"INSERT INTO contacts ({cols}) VALUES ({placeholders})", list(safe.values()))
+    contact_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return contact_id
+
+
+def update_contact(contact_id: int, data: dict):
+    safe = {k: data.get(k, "") for k in _CONTACT_FIELDS}
+    safe["confidence_score"] = int(safe.get("confidence_score") or 100)
+    conn = get_connection()
+    cursor = conn.cursor()
+    set_clause = ", ".join(f"{k} = ?" for k in safe)
+    cursor.execute(f"UPDATE contacts SET {set_clause} WHERE id = ?", list(safe.values()) + [contact_id])
+    conn.commit()
+    conn.close()
+
+
+def delete_contact(contact_id: int):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM job_contacts WHERE contact_id = ?", (contact_id,))
+    cursor.execute("DELETE FROM contacts WHERE id = ?", (contact_id,))
+    conn.commit()
+    conn.close()
+
+
+# ---------- job_contacts ----------
+
+def get_contacts_for_job(job_id: int) -> list:
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT jc.*, c.name as contact_name, c.title as contact_title,
+               c.email, c.linkedin_url, c.company as contact_company
+        FROM job_contacts jc
+        JOIN contacts c ON c.id = jc.contact_id
+        WHERE jc.job_id = ?
+        ORDER BY CASE jc.relationship_type
+            WHEN 'alumni'          THEN 1
+            WHEN 'recruiter'       THEN 2
+            WHEN 'hiring_manager'  THEN 3
+            WHEN 'engineer'        THEN 4
+            ELSE 5 END
+    """, (job_id,))
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_jobs_for_contact(contact_id: int) -> list:
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT jc.*, j.company, j.title as job_title, j.location, j.role_type, j.url
+        FROM job_contacts jc
+        JOIN jobs j ON j.id = jc.job_id
+        WHERE jc.contact_id = ?
+        ORDER BY jc.created_at DESC
+    """, (contact_id,))
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def link_contact_to_job(job_id: int, contact_id: int, relationship_type: str = "recruiter") -> int:
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT OR IGNORE INTO job_contacts (job_id, contact_id, relationship_type, status, created_at)
+        VALUES (?, ?, ?, 'not_contacted', ?)
+    """, (job_id, contact_id, relationship_type, str(date.today())))
+    jc_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return jc_id
+
+
+def unlink_contact_from_job(jc_id: int):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM job_contacts WHERE id = ?", (jc_id,))
+    conn.commit()
+    conn.close()
+
+
+def get_job_contact(jc_id: int) -> dict:
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT jc.*, c.name as contact_name, c.title as contact_title,
+               c.email, c.linkedin_url, c.company as contact_company,
+               j.company as job_company, j.title as job_title, j.role_type
+        FROM job_contacts jc
+        JOIN contacts c ON c.id = jc.contact_id
+        JOIN jobs j ON j.id = jc.job_id
+        WHERE jc.id = ?
+    """, (jc_id,))
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else {}
+
+
+def update_job_contact(jc_id: int, **fields):
+    allowed = {"status", "message_content", "date_sent", "follow_up_date", "response_notes"}
+    safe = {k: v for k, v in fields.items() if k in allowed}
+    if not safe:
+        return
+    conn = get_connection()
+    cursor = conn.cursor()
+    set_clause = ", ".join(f"{k} = ?" for k in safe)
+    cursor.execute(f"UPDATE job_contacts SET {set_clause} WHERE id = ?", list(safe.values()) + [jc_id])
+    conn.commit()
+    conn.close()
+
+
+def get_outreach_queue() -> dict:
+    conn = get_connection()
+    cursor = conn.cursor()
+    today = str(date.today())
+
+    cursor.execute("""
+        SELECT jc.*, c.name as contact_name, c.title as contact_title,
+               c.email, c.linkedin_url,
+               j.company, j.title as job_title, j.id as job_id
+        FROM job_contacts jc
+        JOIN contacts c ON c.id = jc.contact_id
+        JOIN jobs j ON j.id = jc.job_id
+        WHERE jc.status = 'drafted'
+        ORDER BY jc.created_at DESC
+    """)
+    drafts = [dict(r) for r in cursor.fetchall()]
+
+    cursor.execute("""
+        SELECT jc.*, c.name as contact_name, c.title as contact_title,
+               c.email, c.linkedin_url,
+               j.company, j.title as job_title, j.id as job_id
+        FROM job_contacts jc
+        JOIN contacts c ON c.id = jc.contact_id
+        JOIN jobs j ON j.id = jc.job_id
+        WHERE jc.status = 'sent'
+          AND jc.follow_up_date IS NOT NULL
+          AND jc.follow_up_date <= ?
+        ORDER BY jc.follow_up_date ASC
+    """, (today,))
+    follow_ups = [dict(r) for r in cursor.fetchall()]
+
+    cursor.execute("""
+        SELECT jc.*, c.name as contact_name, c.title as contact_title,
+               j.company, j.title as job_title, j.id as job_id
+        FROM job_contacts jc
+        JOIN contacts c ON c.id = jc.contact_id
+        JOIN jobs j ON j.id = jc.job_id
+        WHERE jc.status = 'responded'
+        ORDER BY jc.date_sent DESC
+    """)
+    responded = [dict(r) for r in cursor.fetchall()]
+
+    conn.close()
+    return {"drafts": drafts, "follow_ups": follow_ups, "responded": responded}

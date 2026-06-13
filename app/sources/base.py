@@ -12,6 +12,8 @@ class RawJob:
     description: str = ""
     date_posted: str = ""
     source: str = ""
+    job_type: str = ""   # internship | new_grad | full_time | contract
+    pay_raw:  str = ""   # original salary string, e.g. "$62/hr" or "$100K-$120K"
 
 
 class JobSource:
