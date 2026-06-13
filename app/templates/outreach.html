@@ -1,138 +1,154 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ROSE — Outreach Queue</title>
+    <title>ROSE — Outreach</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 40px; background: #f7f7f7; }
-        .topbar { margin-bottom: 24px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-        .topbar a { text-decoration: none; color: #2563eb; font-weight: bold; }
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+               margin: 0; background: #f5f5f5; color: #111; }
+        .shell { max-width: 900px; margin: 0 auto; padding: 20px; }
 
-        .section { background: white; border: 1px solid #ddd; border-radius: 10px;
-                   padding: 20px 24px; margin-bottom: 20px; }
-        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
-        .section-header h2 { margin: 0; font-size: 16px; }
-        .count-badge { background: #f3f4f6; color: #374151; font-size: 12px; font-weight: 700;
-                       padding: 2px 8px; border-radius: 999px; }
-        .count-badge.urgent { background: #fef2f2; color: #dc2626; }
-        .count-badge.good   { background: #f0fdf4; color: #15803d; }
+        .nav { display: flex; align-items: center; gap: 4px; padding-bottom: 12px;
+               border-bottom: 1px solid #e5e7eb; margin-bottom: 20px; }
+        .nav-brand { font-weight: 800; font-size: 15px; color: #111; text-decoration: none;
+                     margin-right: 12px; letter-spacing: -0.3px; }
+        .nav a { text-decoration: none; color: #555; font-size: 13px; font-weight: 600;
+                 padding: 4px 9px; border-radius: 6px; }
+        .nav a:hover { background: #f3f4f6; color: #111; }
+        .nav a.active { background: #111; color: white; }
+        .nav-spacer { flex: 1; }
 
-        .item { display: flex; align-items: center; gap: 14px; padding: 10px 0;
-                border-bottom: 1px solid #f0f0f0; flex-wrap: wrap; }
+        .section { background: white; border: 1px solid #e5e7eb; border-radius: 10px;
+                   padding: 16px 20px; margin-bottom: 14px; }
+        .section-header { display: flex; justify-content: space-between; align-items: center;
+                          margin-bottom: 12px; }
+        .section-title { font-size: 11px; font-weight: 700; color: #aaa; text-transform: uppercase;
+                         letter-spacing: 0.06em; margin: 0; }
+        .count-chip { font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 999px; }
+        .count-chip.none   { background: #f3f4f6; color: #9ca3af; }
+        .count-chip.urgent { background: #fef2f2; color: #dc2626; }
+        .count-chip.good   { background: #f0fdf4; color: #16a34a; }
+
+        .item { display: flex; align-items: flex-start; gap: 14px; padding: 10px 0;
+                border-bottom: 1px solid #f3f4f6; flex-wrap: wrap; }
         .item:last-child { border-bottom: none; }
         .item-main { flex: 1; min-width: 200px; }
-        .item-company { font-weight: 600; font-size: 15px; }
-        .item-sub { font-size: 12px; color: #666; margin-top: 2px; }
-        .item-preview { font-size: 12px; color: #555; font-style: italic;
-                        max-width: 340px; white-space: nowrap; overflow: hidden;
-                        text-overflow: ellipsis; }
+        .item-name { font-weight: 700; font-size: 14px; margin-bottom: 2px; }
+        .item-sub { font-size: 12px; color: #777; }
+        .item-preview { font-size: 12px; color: #888; font-style: italic; margin-top: 4px;
+                        max-width: 360px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        .badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; font-weight: 600; }
-        .rel-recruiter       { background: #dbeafe; color: #1d4ed8; }
-        .rel-hiring_manager  { background: #ffedd5; color: #c2410c; }
-        .rel-engineer        { background: #dcfce7; color: #15803d; }
-        .rel-alumni          { background: #ede9fe; color: #6d28d9; }
-        .rel-hr              { background: #f3f4f6; color: #6b7280; }
+        .badge { font-size: 10px; padding: 2px 7px; border-radius: 999px; font-weight: 700;
+                 margin-left: 6px; }
+        .rel-recruiter      { background: #dbeafe; color: #1d4ed8; }
+        .rel-hiring_manager { background: #ffedd5; color: #c2410c; }
+        .rel-engineer       { background: #dcfce7; color: #15803d; }
+        .rel-alumni         { background: #ede9fe; color: #6d28d9; }
+        .rel-hr             { background: #f3f4f6; color: #6b7280; }
 
-        .btn { border: none; border-radius: 6px; padding: 5px 12px; font-size: 12px;
+        .item-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+
+        .btn { border: none; border-radius: 6px; padding: 5px 11px; font-size: 12px;
                font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }
-        .btn-green  { background: #dcfce7; color: #15803d; }
         .btn-blue   { background: #dbeafe; color: #1d4ed8; }
+        .btn-green  { background: #dcfce7; color: #15803d; }
         .btn-orange { background: #ffedd5; color: #c2410c; }
-        .btn-gray   { background: #f3f4f6; color: #374151; }
+        .btn-gray   { background: #f3f4f6; color: #555; }
         .btn-purple { background: #ede9fe; color: #6d28d9; }
+        .btn-cta    { background: #16a34a; color: white; border-radius: 7px; padding: 6px 14px;
+                      font-size: 13px; font-weight: 700; }
 
-        .mark-sent-form { display: flex; align-items: center; gap: 6px; }
-        .mark-sent-form input[type="date"] { padding: 4px 8px; border: 1px solid #ccc;
-                                             border-radius: 5px; font-size: 12px; }
-        .respond-form { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-        .respond-form input[type="text"] { padding: 4px 8px; border: 1px solid #ccc;
-                                           border-radius: 5px; font-size: 12px; width: 180px; }
+        .inline-form { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .inline-input { padding: 4px 8px; border: 1px solid #e5e7eb; border-radius: 5px;
+                        font-size: 12px; color: #111; }
+        .inline-input:focus { outline: none; border-color: #6366f1; }
 
-        .empty-note { color: #aaa; font-size: 13px; padding: 8px 0; }
-        a { color: #2563eb; }
-        .score-chip { background: #f0fdf4; color: #15803d; font-size: 12px;
-                      font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+        .score-chip { background: #f0fdf4; color: #16a34a; font-size: 12px; font-weight: 700;
+                      padding: 2px 8px; border-radius: 5px; }
+        .empty-note { color: #aaa; font-size: 13px; padding: 10px 0; }
+        a { color: #2563eb; text-decoration: none; }
+        a:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
-    <div class="topbar">
+<div class="shell">
+
+    <nav class="nav">
+        <a href="/jobs" class="nav-brand">ROSE</a>
         <a href="/jobs">Jobs</a>
         <a href="/tracker">Tracker</a>
-        <a href="/outreach">Outreach</a>
+        <a href="/outreach" class="active">Outreach</a>
         <a href="/contacts">Contacts</a>
         <a href="/profile">Profile</a>
+        <div class="nav-spacer"></div>
         <a href="/settings">Settings</a>
-    </div>
+    </nav>
 
-    <h1 style="margin-bottom: 24px;">Outreach Queue</h1>
+    <p style="font-size:16px; font-weight:700; margin:0 0 16px;">Outreach Queue</p>
 
     <!-- Drafts Ready to Send -->
     <div class="section">
         <div class="section-header">
-            <h2>Drafts Ready to Send</h2>
-            <span class="count-badge {% if drafts %}urgent{% endif %}">{{ drafts | length }}</span>
+            <p class="section-title">Drafts Ready to Send</p>
+            <span class="count-chip {% if drafts %}urgent{% else %}none{% endif %}">{{ drafts | length }}</span>
         </div>
         {% if drafts %}
         {% for d in drafts %}
         <div class="item">
             <div class="item-main">
-                <div class="item-company">
+                <div class="item-name">
                     {{ d.contact_name }}
                     <span class="badge rel-{{ d.relationship_type }}">{{ d.relationship_type | replace('_',' ') }}</span>
                 </div>
                 <div class="item-sub">
-                    {{ d.contact_title or '' }} @ <a href="/jobs/{{ d.job_id }}/ai">{{ d.company }} — {{ d.job_title }}</a>
+                    {{ d.contact_title or '' }}{% if d.contact_title %} @ {% endif %}<a href="/jobs/{{ d.job_id }}/ai">{{ d.company }} — {{ d.job_title }}</a>
                 </div>
                 {% if d.message_content %}
                 <div class="item-preview">{{ d.message_content[:120] }}…</div>
                 {% endif %}
             </div>
-            <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+            <div class="item-actions">
                 <a href="/jobs/{{ d.job_id }}/ai" class="btn btn-blue">View Draft</a>
-                {% if d.email %}
-                <a href="mailto:{{ d.email }}" class="btn btn-gray">Email</a>
-                {% endif %}
-                {% if d.linkedin_url %}
-                <a href="{{ d.linkedin_url }}" target="_blank" class="btn btn-purple">LinkedIn</a>
-                {% endif %}
-                <form method="POST" action="/job-contacts/{{ d.id }}/status" class="mark-sent-form">
+                {% if d.email %}<a href="mailto:{{ d.email }}" class="btn btn-gray">Email</a>{% endif %}
+                {% if d.linkedin_url %}<a href="{{ d.linkedin_url }}" target="_blank" class="btn btn-purple">LinkedIn</a>{% endif %}
+                <form method="POST" action="/job-contacts/{{ d.id }}/status" class="inline-form">
                     <input type="hidden" name="action" value="sent">
-                    <input type="date" name="date_sent" value="{{ today }}">
+                    <input type="date" name="date_sent" value="{{ today }}" class="inline-input">
                     <button class="btn btn-green">Mark Sent</button>
                 </form>
             </div>
         </div>
         {% endfor %}
         {% else %}
-        <div class="empty-note">No drafts yet. Go to a job's AI Assistant and generate a message for a contact.</div>
+        <div class="empty-note">No drafts yet. Open a job's AI assistant and generate a message for a contact.</div>
         {% endif %}
     </div>
 
     <!-- Follow-ups Due -->
     <div class="section">
         <div class="section-header">
-            <h2>Follow-ups Due</h2>
-            <span class="count-badge {% if follow_ups %}urgent{% endif %}">{{ follow_ups | length }}</span>
+            <p class="section-title">Follow-ups Due</p>
+            <span class="count-chip {% if follow_ups %}urgent{% else %}none{% endif %}">{{ follow_ups | length }}</span>
         </div>
         {% if follow_ups %}
         {% for f in follow_ups %}
         <div class="item">
             <div class="item-main">
-                <div class="item-company">
+                <div class="item-name">
                     {{ f.contact_name }}
                     <span class="badge rel-{{ f.relationship_type }}">{{ f.relationship_type | replace('_',' ') }}</span>
                 </div>
                 <div class="item-sub">
                     <a href="/jobs/{{ f.job_id }}/ai">{{ f.company }} — {{ f.job_title }}</a>
-                    | Sent: {{ f.date_sent }} | Due: <strong>{{ f.follow_up_date }}</strong>
+                    · Sent {{ f.date_sent }} · Due <strong style="color:#dc2626;">{{ f.follow_up_date }}</strong>
                 </div>
             </div>
-            <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+            <div class="item-actions">
                 {% if f.email %}<a href="mailto:{{ f.email }}" class="btn btn-gray">Email</a>{% endif %}
                 {% if f.linkedin_url %}<a href="{{ f.linkedin_url }}" target="_blank" class="btn btn-purple">LinkedIn</a>{% endif %}
-                <form method="POST" action="/job-contacts/{{ f.id }}/status" class="respond-form">
+                <form method="POST" action="/job-contacts/{{ f.id }}/status" class="inline-form">
                     <input type="hidden" name="action" value="responded">
-                    <input type="text" name="response_notes" placeholder="Response notes…">
+                    <input type="text" name="response_notes" placeholder="Response notes…" class="inline-input" style="width:160px;">
                     <button class="btn btn-orange">Mark Responded</button>
                 </form>
                 <form method="POST" action="/job-contacts/{{ f.id }}/status">
@@ -150,23 +166,25 @@
     <!-- Responses Received -->
     <div class="section">
         <div class="section-header">
-            <h2>Responses Received</h2>
-            <span class="count-badge {% if responded %}good{% endif %}">{{ responded | length }}</span>
+            <p class="section-title">Responses Received</p>
+            <span class="count-chip {% if responded %}good{% else %}none{% endif %}">{{ responded | length }}</span>
         </div>
         {% if responded %}
         {% for r in responded %}
         <div class="item">
             <div class="item-main">
-                <div class="item-company">{{ r.contact_name }}</div>
+                <div class="item-name">{{ r.contact_name }}</div>
                 <div class="item-sub">
                     <a href="/jobs/{{ r.job_id }}/ai">{{ r.company }} — {{ r.job_title }}</a>
-                    | Sent: {{ r.date_sent or '?' }}
+                    · Sent {{ r.date_sent or '?' }}
                 </div>
                 {% if r.response_notes %}
                 <div class="item-preview">{{ r.response_notes }}</div>
                 {% endif %}
             </div>
-            <a href="/jobs/{{ r.job_id }}/ai" class="btn btn-blue">View Job</a>
+            <div class="item-actions">
+                <a href="/jobs/{{ r.job_id }}/ai" class="btn btn-blue">View Job</a>
+            </div>
         </div>
         {% endfor %}
         {% else %}
@@ -177,21 +195,21 @@
     <!-- High-priority jobs without any contact -->
     <div class="section">
         <div class="section-header">
-            <h2>High-Priority Jobs — No Contact Yet</h2>
-            <span class="count-badge">{{ uncontacted | length }}</span>
+            <p class="section-title">High-Priority Jobs — No Contact Yet</p>
+            <span class="count-chip none">{{ uncontacted | length }}</span>
         </div>
         {% if uncontacted %}
         {% for j in uncontacted %}
         <div class="item">
             <div class="item-main">
-                <div class="item-company">{{ j.company }} — {{ j.title }}</div>
-                <div class="item-sub">{{ j.location or '' }} | {{ j.role_type or '' }}</div>
+                <div class="item-name">{{ j.company }} — {{ j.title }}</div>
+                <div class="item-sub">{{ j.location or '' }}{% if j.location and j.role_type %} · {% endif %}{{ j.role_type or '' }}</div>
             </div>
-            <span class="score-chip">{{ j.final_score }}</span>
-            <a href="/contacts/new?job_id={{ j.id }}&relationship_type=recruiter" class="btn btn-blue">
-                + Add Contact
-            </a>
-            <a href="/jobs/{{ j.id }}/ai" class="btn btn-gray">AI Assistant</a>
+            <div class="item-actions">
+                <span class="score-chip">{{ j.final_score }}</span>
+                <a href="/contacts/new?job_id={{ j.id }}&relationship_type=recruiter" class="btn btn-blue">+ Add Contact</a>
+                <a href="/jobs/{{ j.id }}/ai" class="btn btn-gray">AI →</a>
+            </div>
         </div>
         {% endfor %}
         {% else %}
@@ -199,5 +217,6 @@
         {% endif %}
     </div>
 
+</div>
 </body>
 </html>

@@ -3,38 +3,62 @@
 <head>
     <title>ROSE — {{ 'Edit' if editing else 'Add' }} Contact</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 40px; background: #f7f7f7; }
-        .topbar { margin-bottom: 24px; display: flex; gap: 16px; flex-wrap: wrap; }
-        .topbar a { text-decoration: none; color: #2563eb; font-weight: bold; }
-        .card { background: white; border: 1px solid #ddd; border-radius: 10px;
-                padding: 28px; max-width: 560px; }
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+               margin: 0; background: #f5f5f5; color: #111; }
+        .shell { max-width: 600px; margin: 0 auto; padding: 20px; }
+
+        .nav { display: flex; align-items: center; gap: 4px; padding-bottom: 12px;
+               border-bottom: 1px solid #e5e7eb; margin-bottom: 20px; }
+        .nav-brand { font-weight: 800; font-size: 15px; color: #111; text-decoration: none;
+                     margin-right: 12px; letter-spacing: -0.3px; }
+        .nav a { text-decoration: none; color: #555; font-size: 13px; font-weight: 600;
+                 padding: 4px 9px; border-radius: 6px; }
+        .nav a:hover { background: #f3f4f6; color: #111; }
+        .nav a.active { background: #111; color: white; }
+        .nav-spacer { flex: 1; }
+
+        .card { background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 24px; }
+        .card-title { font-size: 16px; font-weight: 700; margin: 0 0 20px; }
+
         .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-        label { display: block; font-size: 13px; font-weight: 600; color: #444;
-                margin-bottom: 4px; margin-top: 14px; }
-        label:first-of-type { margin-top: 0; }
+        .field { margin-bottom: 14px; }
+        label { display: block; font-size: 12px; font-weight: 700; color: #555;
+                margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.04em; }
         input[type="text"], input[type="email"], input[type="url"],
         input[type="number"], select, textarea {
-            width: 100%; padding: 7px 10px; border: 1px solid #ccc; border-radius: 6px;
-            font-size: 13px; box-sizing: border-box;
+            width: 100%; padding: 7px 10px; border: 1px solid #e5e7eb; border-radius: 6px;
+            font-size: 13px; color: #111; font-family: inherit;
         }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: #6366f1; }
         textarea { resize: vertical; height: 70px; }
-        .hint { font-size: 11px; color: #999; margin-top: 3px; }
-        .actions { display: flex; gap: 10px; margin-top: 22px; align-items: center; }
-        .btn-save { background: #1d4ed8; color: white; border: none; border-radius: 7px;
-                    padding: 9px 22px; font-size: 14px; font-weight: bold; cursor: pointer; }
-        .btn-save:hover { background: #1e40af; }
-        .btn-cancel { color: #6b7280; text-decoration: none; font-size: 14px; }
+        .hint { font-size: 11px; color: #aaa; margin-top: 4px; }
+
+        .form-actions { display: flex; gap: 10px; margin-top: 20px; align-items: center; }
+        .btn-submit { background: #111; color: white; border: none; border-radius: 7px;
+                      padding: 9px 22px; font-size: 13px; font-weight: 700; cursor: pointer; }
+        .btn-submit:hover { background: #374151; }
+        .btn-cancel { color: #aaa; text-decoration: none; font-size: 13px; }
+        .btn-cancel:hover { color: #555; }
     </style>
 </head>
 <body>
-    <div class="topbar">
-        <a href="/contacts">← Contacts</a>
-        {% if job_id %}<a href="/jobs/{{ job_id }}/ai">← Back to Job</a>{% endif %}
-    </div>
+<div class="shell">
 
-    <h1 style="margin-bottom: 20px;">{{ 'Edit' if editing else 'Add' }} Contact</h1>
+    <nav class="nav">
+        <a href="/jobs" class="nav-brand">ROSE</a>
+        <a href="/jobs">Jobs</a>
+        <a href="/tracker">Tracker</a>
+        <a href="/outreach">Outreach</a>
+        <a href="/contacts" class="active">Contacts</a>
+        <a href="/profile">Profile</a>
+        <div class="nav-spacer"></div>
+        <a href="/settings">Settings</a>
+    </nav>
 
     <div class="card">
+        <p class="card-title">{{ 'Edit' if editing else 'Add' }} Contact</p>
+
         <form method="POST" action="{{ '/contacts/' + contact.id|string + '/edit' if editing else '/contacts' }}">
             {% if job_id %}
             <input type="hidden" name="job_id" value="{{ job_id }}">
@@ -42,26 +66,28 @@
             {% endif %}
 
             <div class="grid2">
-                <div>
+                <div class="field">
                     <label>Full Name *</label>
                     <input type="text" name="name" value="{{ contact.get('name', '') }}" required>
                 </div>
-                <div>
+                <div class="field">
                     <label>Company *</label>
                     <input type="text" name="company" value="{{ contact.get('company', '') }}" required>
                 </div>
             </div>
 
-            <label>Title / Role</label>
-            <input type="text" name="title" value="{{ contact.get('title', '') }}"
-                   placeholder="Senior Technical Recruiter">
+            <div class="field">
+                <label>Title / Role</label>
+                <input type="text" name="title" value="{{ contact.get('title', '') }}"
+                       placeholder="Senior Technical Recruiter">
+            </div>
 
             <div class="grid2">
-                <div>
+                <div class="field">
                     <label>Email</label>
                     <input type="email" name="email" value="{{ contact.get('email', '') }}">
                 </div>
-                <div>
+                <div class="field">
                     <label>Source</label>
                     <select name="source">
                         {% for src in ['manual', 'linkedin', 'referral', 'recruiter_email', 'career_fair', 'other'] %}
@@ -73,26 +99,33 @@
                 </div>
             </div>
 
-            <label>LinkedIn URL</label>
-            <input type="url" name="linkedin_url" value="{{ contact.get('linkedin_url', '') }}"
-                   placeholder="https://linkedin.com/in/...">
+            <div class="field">
+                <label>LinkedIn URL</label>
+                <input type="url" name="linkedin_url" value="{{ contact.get('linkedin_url', '') }}"
+                       placeholder="https://linkedin.com/in/...">
+            </div>
 
-            <label>Confidence Score</label>
-            <input type="number" name="confidence_score"
-                   value="{{ contact.get('confidence_score', 100) }}" min="1" max="100">
-            <div class="hint">1–100. Manual entry = 100. Use lower values for less certain contacts.</div>
+            <div class="field">
+                <label>Confidence Score</label>
+                <input type="number" name="confidence_score"
+                       value="{{ contact.get('confidence_score', 100) }}" min="1" max="100">
+                <div class="hint">1–100. Manual entry = 100. Lower for less certain contacts.</div>
+            </div>
 
-            <label>Notes</label>
-            <textarea name="notes" placeholder="Met at career fair. Mentioned SWE openings in Chicago.">{{ contact.get('notes', '') }}</textarea>
+            <div class="field">
+                <label>Notes</label>
+                <textarea name="notes" placeholder="Met at career fair. Mentioned SWE openings in Chicago.">{{ contact.get('notes', '') }}</textarea>
+            </div>
 
-            <div class="actions">
-                <button type="submit" class="btn-save">
+            <div class="form-actions">
+                <button type="submit" class="btn-submit">
                     {{ 'Save Changes' if editing else 'Add Contact' }}
                 </button>
-                <a href="{{ '/contacts/' + contact.id|string + '/edit' if editing else '/contacts' }}"
-                   class="btn-cancel">Cancel</a>
+                <a href="/contacts" class="btn-cancel">Cancel</a>
             </div>
         </form>
     </div>
+
+</div>
 </body>
 </html>

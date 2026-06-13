@@ -1,113 +1,153 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ROSE — Candidate Profile</title>
+    <title>ROSE — Profile</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 40px; background: #f7f7f7; }
-        .topbar { margin-bottom: 24px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-        .topbar a { text-decoration: none; color: #2563eb; font-weight: bold; }
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+               margin: 0; background: #f5f5f5; color: #111; }
+        .shell { max-width: 920px; margin: 0 auto; padding: 20px; }
 
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 900px; }
-        .card { background: white; border: 1px solid #ddd; border-radius: 10px; padding: 22px; }
+        .nav { display: flex; align-items: center; gap: 4px; padding-bottom: 12px;
+               border-bottom: 1px solid #e5e7eb; margin-bottom: 20px; }
+        .nav-brand { font-weight: 800; font-size: 15px; color: #111; text-decoration: none;
+                     margin-right: 12px; letter-spacing: -0.3px; }
+        .nav a { text-decoration: none; color: #555; font-size: 13px; font-weight: 600;
+                 padding: 4px 9px; border-radius: 6px; }
+        .nav a:hover { background: #f3f4f6; color: #111; }
+        .nav a.active { background: #111; color: white; }
+        .nav-spacer { flex: 1; }
+
+        .page-header { margin-bottom: 20px; }
+        .page-title { font-size: 16px; font-weight: 700; margin: 0 0 4px; }
+        .page-sub { font-size: 13px; color: #888; margin: 0; }
+
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+        .card { background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; }
         .card.full { grid-column: 1 / -1; }
-        h2 { margin: 0 0 14px; font-size: 15px; color: #111; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+        .card-title { font-size: 11px; font-weight: 700; color: #aaa; text-transform: uppercase;
+                      letter-spacing: 0.06em; margin: 0 0 14px; padding-bottom: 10px;
+                      border-bottom: 1px solid #f3f4f6; }
 
-        label { display: block; font-size: 13px; font-weight: 600; color: #444; margin-bottom: 4px; margin-top: 12px; }
-        label:first-of-type { margin-top: 0; }
+        .field { margin-bottom: 12px; }
+        .field:last-child { margin-bottom: 0; }
+        label { display: block; font-size: 12px; font-weight: 700; color: #555;
+                margin-bottom: 4px; }
         input[type="text"], input[type="email"] {
-            width: 100%; padding: 7px 10px; border: 1px solid #ccc; border-radius: 6px;
-            font-size: 13px; box-sizing: border-box;
+            width: 100%; padding: 7px 10px; border: 1px solid #e5e7eb; border-radius: 6px;
+            font-size: 13px; color: #111; font-family: inherit;
         }
         textarea {
-            width: 100%; padding: 7px 10px; border: 1px solid #ccc; border-radius: 6px;
-            font-size: 13px; box-sizing: border-box; resize: vertical;
+            width: 100%; padding: 7px 10px; border: 1px solid #e5e7eb; border-radius: 6px;
+            font-size: 13px; color: #111; font-family: inherit; resize: vertical;
         }
-        .hint { font-size: 11px; color: #999; margin-top: 3px; }
+        input:focus, textarea:focus { outline: none; border-color: #6366f1; }
+        .hint { font-size: 11px; color: #aaa; margin-top: 4px; }
+
         .resume-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
-        .save-bar { max-width: 900px; display: flex; gap: 12px; align-items: center; margin-top: 20px; }
-        .btn-save { background: #1d4ed8; color: white; border: none; border-radius: 7px;
-                    padding: 10px 24px; font-size: 14px; font-weight: bold; cursor: pointer; }
-        .btn-save:hover { background: #1e40af; }
-        .btn-cancel { color: #6b7280; text-decoration: none; font-size: 14px; }
+        .save-bar { display: flex; gap: 12px; align-items: center; margin-top: 16px; }
+        .btn-save { background: #111; color: white; border: none; border-radius: 7px;
+                    padding: 10px 24px; font-size: 13px; font-weight: 700; cursor: pointer; }
+        .btn-save:hover { background: #374151; }
+        .btn-cancel { color: #aaa; text-decoration: none; font-size: 13px; }
+        .btn-cancel:hover { color: #555; }
     </style>
 </head>
 <body>
-    <div class="topbar">
+<div class="shell">
+
+    <nav class="nav">
+        <a href="/jobs" class="nav-brand">ROSE</a>
         <a href="/jobs">Jobs</a>
         <a href="/tracker">Tracker</a>
-        <a href="/profile">Profile</a>
+        <a href="/outreach">Outreach</a>
+        <a href="/contacts">Contacts</a>
+        <a href="/profile" class="active">Profile</a>
+        <div class="nav-spacer"></div>
         <a href="/settings">Settings</a>
-    </div>
+    </nav>
 
-    <h1 style="margin-bottom: 6px;">Candidate Profile</h1>
-    <p style="color:#666; font-size:14px; margin-bottom: 24px;">
-        This is used by the AI assistant to personalize job analysis, cover letters, and outreach.
-        Fill it in once — the more detail you add, the better the AI output.
-    </p>
+    <div class="page-header">
+        <p class="page-title">Candidate Profile</p>
+        <p class="page-sub">Used by the AI assistant to personalize job analysis, cover letters, and outreach. Fill it in once.</p>
+    </div>
 
     <form method="POST" action="/profile">
     <div class="grid">
 
         <!-- Basic Info -->
         <div class="card">
-            <h2>Basic Info</h2>
-            <label>Full Name</label>
-            <input type="text" name="name" value="{{ profile.get('name', '') }}">
-
-            <label>Email</label>
-            <input type="email" name="email" value="{{ profile.get('email', '') }}">
-
-            <label>School</label>
-            <input type="text" name="school" value="{{ profile.get('school', '') }}" placeholder="University of Illinois">
-
-            <label>Degree</label>
-            <input type="text" name="degree" value="{{ profile.get('degree', '') }}" placeholder="B.S. Computer Science">
-
-            <label>Graduation Year</label>
-            <input type="text" name="graduation_year" value="{{ profile.get('graduation_year', '') }}" placeholder="May 2027">
-
-            <label>GPA</label>
-            <input type="text" name="gpa" value="{{ profile.get('gpa', '') }}" placeholder="3.8 / 4.0">
+            <p class="card-title">Basic Info</p>
+            <div class="field">
+                <label>Full Name</label>
+                <input type="text" name="name" value="{{ profile.get('name', '') }}">
+            </div>
+            <div class="field">
+                <label>Email</label>
+                <input type="email" name="email" value="{{ profile.get('email', '') }}">
+            </div>
+            <div class="field">
+                <label>School</label>
+                <input type="text" name="school" value="{{ profile.get('school', '') }}" placeholder="University of Illinois">
+            </div>
+            <div class="field">
+                <label>Degree</label>
+                <input type="text" name="degree" value="{{ profile.get('degree', '') }}" placeholder="B.S. Computer Science">
+            </div>
+            <div class="field">
+                <label>Graduation Year</label>
+                <input type="text" name="graduation_year" value="{{ profile.get('graduation_year', '') }}" placeholder="May 2027">
+            </div>
+            <div class="field">
+                <label>GPA</label>
+                <input type="text" name="gpa" value="{{ profile.get('gpa', '') }}" placeholder="3.8 / 4.0">
+            </div>
         </div>
 
-        <!-- Summary + Preferred Roles -->
+        <!-- Summary + Preferences -->
         <div class="card">
-            <h2>Summary & Preferences</h2>
-            <label>Personal Summary</label>
-            <textarea name="personal_summary" rows="4" placeholder="2-3 sentences about your background, what you're looking for, and what makes you stand out.">{{ profile.get('personal_summary', '') }}</textarea>
-
-            <label>Preferred Roles</label>
-            <textarea name="preferred_roles" rows="3" placeholder="One per line:&#10;SWE&#10;Backend&#10;Systems/Infra">{{ profile.get('preferred_roles', '') }}</textarea>
-            <div class="hint">One per line. Used to prioritize job analysis.</div>
+            <p class="card-title">Summary & Preferences</p>
+            <div class="field">
+                <label>Personal Summary</label>
+                <textarea name="personal_summary" rows="5" placeholder="2-3 sentences about your background, what you're looking for, and what makes you stand out.">{{ profile.get('personal_summary', '') }}</textarea>
+            </div>
+            <div class="field">
+                <label>Preferred Roles</label>
+                <textarea name="preferred_roles" rows="4" placeholder="One per line:&#10;SWE&#10;Backend&#10;Systems/Infra">{{ profile.get('preferred_roles', '') }}</textarea>
+                <div class="hint">One per line. Used to prioritize job analysis.</div>
+            </div>
         </div>
 
-        <!-- Skills -->
+        <!-- Technical Skills -->
         <div class="card">
-            <h2>Technical Skills</h2>
-            <label>Skills</label>
-            <textarea name="skills" rows="8" placeholder="One per line or comma-separated:&#10;Python&#10;C++&#10;Go&#10;React&#10;PostgreSQL&#10;Docker&#10;System Design">{{ profile.get('skills', '') }}</textarea>
-            <div class="hint">Be specific — the AI uses these to match against job requirements.</div>
+            <p class="card-title">Technical Skills</p>
+            <div class="field">
+                <label>Skills</label>
+                <textarea name="skills" rows="9" placeholder="One per line or comma-separated:&#10;Python&#10;C++&#10;Go&#10;React&#10;PostgreSQL&#10;Docker">{{ profile.get('skills', '') }}</textarea>
+                <div class="hint">Be specific — the AI uses these to match against job requirements.</div>
+            </div>
         </div>
 
         <!-- Resume Versions -->
         <div class="card">
-            <h2>Resume Versions</h2>
-            <p style="font-size:13px; color:#666; margin: 0 0 12px;">Name your 4 resume versions. The AI will recommend the best fit for each job.</p>
+            <p class="card-title">Resume Versions</p>
+            <p style="font-size:12px; color:#888; margin: 0 0 12px;">Name your 4 resume versions. The AI will recommend the best fit per job.</p>
             <div class="resume-grid">
-                <div>
+                <div class="field">
                     <label>Version 1</label>
                     <input type="text" name="resume_v1_name" value="{{ profile.get('resume_v1_name', 'SWE General') }}">
                 </div>
-                <div>
+                <div class="field">
                     <label>Version 2</label>
                     <input type="text" name="resume_v2_name" value="{{ profile.get('resume_v2_name', 'Data / ML') }}">
                 </div>
-                <div>
+                <div class="field">
                     <label>Version 3</label>
                     <input type="text" name="resume_v3_name" value="{{ profile.get('resume_v3_name', 'Hardware / Embedded') }}">
                 </div>
-                <div>
+                <div class="field">
                     <label>Version 4</label>
                     <input type="text" name="resume_v4_name" value="{{ profile.get('resume_v4_name', 'PM / Product') }}">
                 </div>
@@ -116,24 +156,24 @@
 
         <!-- Experience -->
         <div class="card full">
-            <h2>Internship & Work Experience</h2>
-            <textarea name="experience" rows="10" placeholder="Format freely — the AI reads this as context:&#10;&#10;Intern @ Acme Corp | Summer 2025&#10;- Built a distributed rate limiter in Go, reducing API abuse by 40%&#10;- Redesigned internal dashboard using React + TypeScript&#10;&#10;Research Asst @ CS Dept | Fall 2024&#10;- Ran experiments on neural network pruning, published poster at UIUC symposium">{{ profile.get('experience', '') }}</textarea>
+            <p class="card-title">Internship & Work Experience</p>
+            <textarea name="experience" rows="10" placeholder="Format freely — the AI reads this as context:&#10;&#10;Intern @ Acme Corp | Summer 2025&#10;- Built a distributed rate limiter in Go, reducing API abuse by 40%&#10;- Redesigned internal dashboard using React + TypeScript&#10;&#10;Research Asst @ CS Dept | Fall 2024&#10;- Ran experiments on neural network pruning">{{ profile.get('experience', '') }}</textarea>
         </div>
 
         <!-- Projects -->
         <div class="card full">
-            <h2>Projects</h2>
-            <textarea name="projects" rows="8" placeholder="Format freely:&#10;&#10;ROSE (this app) — Python / FastAPI / SQLite&#10;- Job recruiting automation tool with scoring, tracking, and AI-generated application materials&#10;&#10;DistCache — Go&#10;- Distributed key-value cache with consistent hashing and replication, 10k req/s under load">{{ profile.get('projects', '') }}</textarea>
+            <p class="card-title">Projects</p>
+            <textarea name="projects" rows="7" placeholder="Format freely:&#10;&#10;ROSE — Python / FastAPI / SQLite&#10;- Job recruiting automation tool with scoring, tracking, and AI-generated materials&#10;&#10;DistCache — Go&#10;- Distributed key-value cache with consistent hashing, 10k req/s under load">{{ profile.get('projects', '') }}</textarea>
         </div>
 
         <!-- Strongest Bullets -->
         <div class="card full">
-            <h2>Strongest Resume Bullets</h2>
-            <textarea name="strongest_bullets" rows="6" placeholder="One bullet per line — your best, most impactful lines:&#10;&#10;- Reduced API latency by 60% by introducing connection pooling and query caching&#10;- Led 3-person team to ship a feature used by 8,000 daily active users in 6 weeks">{{ profile.get('strongest_bullets', '') }}</textarea>
+            <p class="card-title">Strongest Resume Bullets</p>
+            <textarea name="strongest_bullets" rows="5" placeholder="One bullet per line — your best, most impactful lines:&#10;&#10;- Reduced API latency by 60% by introducing connection pooling and query caching&#10;- Led 3-person team to ship a feature used by 8,000 daily active users in 6 weeks">{{ profile.get('strongest_bullets', '') }}</textarea>
             <div class="hint">The AI pulls from these when writing cover letters and outreach.</div>
         </div>
 
-    </div><!-- end grid -->
+    </div>
 
     <div class="save-bar">
         <button type="submit" class="btn-save">Save Profile</button>
@@ -141,5 +181,6 @@
     </div>
     </form>
 
+</div>
 </body>
 </html>

@@ -3,188 +3,262 @@
 <head>
     <title>ROSE AI — {{ job.company }}</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 40px; background: #f7f7f7; }
-        .topbar { margin-bottom: 20px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-        .topbar a { text-decoration: none; color: #2563eb; font-weight: bold; }
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+               margin: 0; background: #f5f5f5; color: #111; }
+        .shell { max-width: 860px; margin: 0 auto; padding: 20px; }
 
-        .job-banner { background: white; border: 1px solid #ddd; border-radius: 10px;
-                      padding: 16px 20px; margin-bottom: 20px; display: flex;
-                      justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
-        .job-banner h2 { margin: 0; font-size: 18px; }
-        .job-meta { font-size: 13px; color: #666; margin-top: 4px; }
-        .score { font-size: 20px; font-weight: bold; color: #15803d; }
+        .nav { display: flex; align-items: center; gap: 4px; padding-bottom: 12px;
+               border-bottom: 1px solid #e5e7eb; margin-bottom: 20px; }
+        .nav-brand { font-weight: 800; font-size: 15px; color: #111; text-decoration: none;
+                     margin-right: 12px; letter-spacing: -0.3px; }
+        .nav a { text-decoration: none; color: #555; font-size: 13px; font-weight: 600;
+                 padding: 4px 9px; border-radius: 6px; }
+        .nav a:hover { background: #f3f4f6; color: #111; }
+        .nav a.active { background: #111; color: white; }
+        .nav-spacer { flex: 1; }
 
-        .generate-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 28px; }
-        .btn { border: none; border-radius: 7px; padding: 9px 18px; font-size: 13px;
-               font-weight: bold; cursor: pointer; }
-        .btn-ai     { background: #7c3aed; color: white; }
+        /* Job banner */
+        .job-banner { background: white; border: 1px solid #e5e7eb; border-radius: 10px;
+                      padding: 14px 18px; margin-bottom: 14px;
+                      display: flex; justify-content: space-between; align-items: center;
+                      flex-wrap: wrap; gap: 10px; }
+        .banner-title { font-size: 16px; font-weight: 700; margin: 0 0 2px; }
+        .banner-meta { font-size: 12px; color: #888; }
+        .banner-meta a { color: #2563eb; text-decoration: none; }
+        .score { font-size: 18px; font-weight: 800; color: #16a34a; }
+
+        /* Alerts */
+        .alert { border-radius: 8px; padding: 11px 14px; margin-bottom: 12px; font-size: 13px; }
+        .alert-error   { background: #fef2f2; border: 1px solid #fca5a5; color: #b91c1c; }
+        .alert-warning { background: #fefce8; border: 1px solid #fde68a; color: #92400e; }
+        .alert a { color: inherit; font-weight: 700; }
+
+        /* Sections */
+        .section { background: white; border: 1px solid #e5e7eb; border-radius: 10px;
+                   padding: 16px 18px; margin-bottom: 12px; }
+        .section-header { display: flex; justify-content: space-between; align-items: center;
+                          margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+        .section-title { font-size: 11px; font-weight: 700; color: #aaa; text-transform: uppercase;
+                         letter-spacing: 0.06em; margin: 0; }
+        .section-meta { font-size: 11px; color: #bbb; }
+
+        /* Buttons */
+        .btn { border: none; border-radius: 6px; padding: 5px 12px; font-size: 12px;
+               font-weight: 700; cursor: pointer; text-decoration: none; display: inline-block; }
+        .btn-ai     { background: #7c3aed; color: white; border-radius: 7px;
+                      padding: 7px 16px; font-size: 13px; }
         .btn-ai:hover { background: #6d28d9; }
-        .btn-save   { background: #1d4ed8; color: white; }
+        .btn-save   { background: #1d4ed8; color: white; border-radius: 7px;
+                      padding: 7px 16px; font-size: 13px; }
         .btn-save:hover { background: #1e40af; }
-        .btn-approve { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
-        .btn-approve.active { background: #15803d; color: white; border-color: #15803d; }
-        .btn-regen  { background: #f3f4f6; color: #374151; }
+        .btn-approve { background: #f3f4f6; color: #555; border: 1px solid #e5e7eb; }
+        .btn-approve.active { background: #16a34a; color: white; border-color: #16a34a; }
+        .btn-regen  { background: #f3f4f6; color: #555; }
         .btn-regen:hover { background: #e5e7eb; }
-        .btn-profile { background: #fef9c3; color: #854d0e; }
+        .btn-blue   { background: #dbeafe; color: #1d4ed8; }
+        .btn-purple { background: #ede9fe; color: #6d28d9; }
+        .btn-green  { background: #dcfce7; color: #15803d; }
+        .btn-orange { background: #ffedd5; color: #c2410c; }
+        .btn-red    { background: #fee2e2; color: #b91c1c; }
 
-        .output-section { background: white; border: 1px solid #ddd; border-radius: 10px;
-                          padding: 20px 24px; margin-bottom: 20px; }
-        .output-header { display: flex; justify-content: space-between; align-items: center;
-                         margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
-        .output-title { font-size: 16px; font-weight: bold; margin: 0; }
-        .output-meta { font-size: 12px; color: #888; }
-        .output-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        /* Generate bar */
+        .generate-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
 
+        /* Output textarea */
         textarea.output-content {
-            width: 100%; min-height: 240px; padding: 12px; border: 1px solid #e5e7eb;
+            width: 100%; min-height: 220px; padding: 11px; border: 1px solid #e5e7eb;
             border-radius: 7px; font-size: 13px; font-family: 'Courier New', monospace;
-            line-height: 1.6; box-sizing: border-box; resize: vertical; color: #111;
+            line-height: 1.6; resize: vertical; color: #111; background: #fafafa;
         }
-        textarea.output-content:focus { outline: none; border-color: #7c3aed; }
+        textarea.output-content:focus { outline: none; border-color: #7c3aed; background: white; }
 
-        .empty-section { background: white; border: 2px dashed #e5e7eb; border-radius: 10px;
-                         padding: 30px 24px; margin-bottom: 20px; text-align: center; color: #888; }
-        .empty-section p { margin: 0 0 14px; font-size: 14px; }
+        .output-footer { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
 
-        .alert { background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px;
-                 padding: 12px 16px; margin-bottom: 20px; color: #b91c1c; font-size: 13px; }
-        .profile-warn { background: #fef9c3; border: 1px solid #fde68a; border-radius: 8px;
-                        padding: 12px 16px; margin-bottom: 20px; font-size: 13px; color: #854d0e; }
+        /* Empty state */
+        .empty-section { background: #fafafa; border: 2px dashed #e5e7eb; border-radius: 10px;
+                         padding: 28px; margin-bottom: 12px; text-align: center; }
+        .empty-section p { color: #aaa; font-size: 13px; margin: 0 0 12px; }
+
+        /* Contacts */
+        .contact-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start;
+                       padding: 10px 0; border-bottom: 1px solid #f3f4f6; }
+        .contact-row:last-child { border-bottom: none; }
+        .contact-info { flex: 1; min-width: 180px; }
+        .contact-name { font-weight: 700; font-size: 13px; }
+        .contact-sub  { font-size: 12px; color: #777; margin-top: 1px; }
+        .contact-links { font-size: 12px; margin-top: 3px; }
+        .contact-links a { color: #2563eb; text-decoration: none; }
+
+        .rel-badge { font-size: 10px; padding: 2px 6px; border-radius: 999px; font-weight: 700;
+                     margin-left: 5px; }
+        .rel-recruiter      { background: #dbeafe; color: #1d4ed8; }
+        .rel-hiring_manager { background: #ffedd5; color: #c2410c; }
+        .rel-engineer       { background: #dcfce7; color: #15803d; }
+        .rel-alumni         { background: #ede9fe; color: #6d28d9; }
+        .rel-hr             { background: #f3f4f6; color: #6b7280; }
+
+        .status-dot { font-size: 10px; padding: 2px 7px; border-radius: 999px; font-weight: 700;
+                      width: fit-content; }
+        .status-not_contacted { background: #f3f4f6; color: #9ca3af; }
+        .status-drafted   { background: #fef9c3; color: #854d0e; }
+        .status-sent      { background: #dcfce7; color: #15803d; }
+        .status-responded { background: #ede9fe; color: #6d28d9; }
+        .status-closed    { background: #f3f4f6; color: #9ca3af; }
+
+        .inline-form { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .inline-input { padding: 3px 8px; border: 1px solid #e5e7eb; border-radius: 5px;
+                        font-size: 12px; color: #111; font-family: inherit; }
+        .inline-input:focus { outline: none; border-color: #6366f1; }
+
+        .contact-message-block { width: 100%; margin-top: 8px; }
+        .contact-message-block textarea {
+            width: 100%; font-size: 12px; font-family: 'Courier New', monospace;
+            padding: 8px; border: 1px solid #e5e7eb; border-radius: 6px;
+            resize: vertical; color: #111; background: #fafafa;
+        }
+
+        .link-contact-row { margin-top: 12px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+        select { padding: 5px 8px; border: 1px solid #e5e7eb; border-radius: 6px;
+                 font-size: 13px; color: #111; font-family: inherit; }
+        select:focus { outline: none; border-color: #6366f1; }
+
+        a { color: #2563eb; text-decoration: none; }
+        a:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
+<div class="shell">
 
-    <div class="topbar">
-        <a href="/jobs">← Jobs</a>
+    <nav class="nav">
+        <a href="/jobs" class="nav-brand">ROSE</a>
+        <a href="/jobs" class="active">Jobs</a>
         <a href="/tracker">Tracker</a>
         <a href="/outreach">Outreach</a>
         <a href="/contacts">Contacts</a>
         <a href="/profile">Profile</a>
-    </div>
+        <div class="nav-spacer"></div>
+        <a href="/settings">Settings</a>
+    </nav>
 
     <!-- Job banner -->
     <div class="job-banner">
         <div>
-            <h2>{{ job.company }} — {{ job.title }}</h2>
-            <div class="job-meta">
-                {{ job.location or "?" }} | {{ job.role_type or "?" }} | Posted: {{ job.date_posted or "?" }}
-                {% if job.url %} | <a href="{{ job.url }}" target="_blank">→ Job Link</a>{% endif %}
-            </div>
+            <p class="banner-title">{{ job.company }} — {{ job.title }}</p>
+            <p class="banner-meta">
+                {{ job.location or "?" }}
+                · {{ job.role_type or "?" }}
+                · Posted {{ job.date_posted or "?" }}
+                {% if job.url %} · <a href="{{ job.url }}" target="_blank">Apply →</a>{% endif %}
+            </p>
         </div>
         <span class="score">{{ job.final_score or "—" }}</span>
     </div>
 
     {% if error %}
-    <div class="alert">Error: {{ error }}</div>
+    <div class="alert alert-error">Error: {{ error }}</div>
     {% endif %}
 
     {% if not profile_set %}
-    <div class="profile-warn">
-        Your candidate profile is empty — AI output will be generic.
-        <a href="/profile" style="font-weight:bold; color:#854d0e;">Set up your profile →</a>
+    <div class="alert alert-warning">
+        Profile is empty — AI output will be generic.
+        <a href="/profile">Set up your profile →</a>
     </div>
     {% endif %}
 
     <!-- Contacts & Outreach -->
-    <div class="output-section" style="margin-bottom:20px;">
-        <div class="output-header">
-            <h3 class="output-title">Contacts & Outreach</h3>
+    <div class="section">
+        <div class="section-header">
+            <p class="section-title">Contacts & Outreach</p>
             <a href="/contacts/new?job_id={{ job.id }}&relationship_type=recruiter"
-               style="font-size:13px; color:#2563eb; text-decoration:none;">+ Add New Contact</a>
+               style="font-size:12px; font-weight:700; color:#2563eb;">+ Add Contact</a>
         </div>
 
         {% if job_contacts %}
         {% for jc in job_contacts %}
-        <div style="border-bottom:1px solid #f0f0f0; padding:10px 0; display:flex; flex-wrap:wrap; gap:10px; align-items:flex-start;">
-            <div style="flex:1; min-width:180px;">
-                <strong>{{ jc.contact_name }}</strong>
-                <span style="font-size:11px; padding:2px 7px; border-radius:999px; font-weight:600; margin-left:6px;
-                    background:{% if jc.relationship_type=='alumni' %}#ede9fe{% elif jc.relationship_type=='hiring_manager' %}#ffedd5{% elif jc.relationship_type=='engineer' %}#dcfce7{% else %}#dbeafe{% endif %};
-                    color:{% if jc.relationship_type=='alumni' %}#6d28d9{% elif jc.relationship_type=='hiring_manager' %}#c2410c{% elif jc.relationship_type=='engineer' %}#15803d{% else %}#1d4ed8{% endif %};">
-                    {{ jc.relationship_type | replace('_',' ') }}
-                </span><br>
-                <span style="font-size:12px; color:#666;">{{ jc.contact_title or '' }}</span>
-                {% if jc.email %}<br><a href="mailto:{{ jc.email }}" style="font-size:12px;">{{ jc.email }}</a>{% endif %}
-                {% if jc.linkedin_url %} · <a href="{{ jc.linkedin_url }}" target="_blank" style="font-size:12px;">LinkedIn</a>{% endif %}
+        <div class="contact-row">
+            <div class="contact-info">
+                <div class="contact-name">
+                    {{ jc.contact_name }}
+                    <span class="rel-badge rel-{{ jc.relationship_type }}">{{ jc.relationship_type | replace('_',' ') }}</span>
+                </div>
+                <div class="contact-sub">{{ jc.contact_title or '' }}</div>
+                <div class="contact-links">
+                    {% if jc.email %}<a href="mailto:{{ jc.email }}">{{ jc.email }}</a>{% endif %}
+                    {% if jc.email and jc.linkedin_url %} · {% endif %}
+                    {% if jc.linkedin_url %}<a href="{{ jc.linkedin_url }}" target="_blank">LinkedIn</a>{% endif %}
+                </div>
             </div>
 
-            <div style="display:flex; flex-direction:column; gap:8px;">
-                {% set s = jc.status %}
-                <span style="font-size:11px; padding:2px 8px; border-radius:999px; font-weight:600; width:fit-content;
-                    background:{% if s=='drafted' %}#fef9c3{% elif s=='sent' %}#dcfce7{% elif s=='responded' %}#ede9fe{% elif s=='closed' %}#f3f4f6{% else %}#f3f4f6{% endif %};
-                    color:{% if s=='drafted' %}#854d0e{% elif s=='sent' %}#15803d{% elif s=='responded' %}#6d28d9{% elif s=='closed' %}#6b7280{% else %}#6b7280{% endif %};">
-                    {{ s | replace('_',' ') | title }}
-                </span>
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <span class="status-dot status-{{ jc.status }}">{{ jc.status | replace('_',' ') | title }}</span>
 
-                {% if s in ['not_contacted'] %}
+                {% if jc.status == 'not_contacted' %}
                 <form method="POST" action="/job-contacts/{{ jc.id }}/generate">
                     <button class="btn btn-ai" style="font-size:12px; padding:4px 10px;">Generate Message</button>
                 </form>
-                {% elif s == 'drafted' %}
-                <form method="POST" action="/job-contacts/{{ jc.id }}/status" style="display:flex; gap:6px; align-items:center;">
+
+                {% elif jc.status == 'drafted' %}
+                <form method="POST" action="/job-contacts/{{ jc.id }}/status" class="inline-form">
                     <input type="hidden" name="action" value="sent">
-                    <input type="date" name="date_sent" value="{{ today }}"
-                           style="font-size:12px; padding:3px 7px; border:1px solid #ccc; border-radius:5px;">
+                    <input type="date" name="date_sent" value="{{ today }}" class="inline-input">
                     <button class="btn btn-green" style="font-size:12px; padding:4px 10px;">Mark Sent</button>
                 </form>
-                {% elif s == 'sent' %}
-                <form method="POST" action="/job-contacts/{{ jc.id }}/status" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+
+                {% elif jc.status == 'sent' %}
+                <form method="POST" action="/job-contacts/{{ jc.id }}/status" class="inline-form">
                     <input type="hidden" name="action" value="responded">
-                    <input type="text" name="response_notes" placeholder="Response notes…"
-                           style="font-size:12px; padding:3px 7px; border:1px solid #ccc; border-radius:5px; width:160px;">
+                    <input type="text" name="response_notes" placeholder="Response notes…" class="inline-input" style="width:150px;">
                     <button class="btn btn-orange" style="font-size:12px; padding:4px 10px;">Mark Responded</button>
                 </form>
-                <span style="font-size:11px; color:#888;">Sent: {{ jc.date_sent }} | Follow-up: {{ jc.follow_up_date }}</span>
+                <span style="font-size:11px; color:#aaa;">Sent {{ jc.date_sent }} · Follow-up {{ jc.follow_up_date }}</span>
                 {% endif %}
             </div>
 
             {% if jc.message_content %}
-            <div style="width:100%; margin-top:6px;">
+            <div class="contact-message-block">
                 <form method="POST" action="/job-contacts/{{ jc.id }}/save-message">
-                    <textarea name="message_content" rows="5"
-                              style="width:100%; font-size:12px; font-family:'Courier New',monospace; padding:8px;
-                                     border:1px solid #e5e7eb; border-radius:6px; box-sizing:border-box; resize:vertical;">{{ jc.message_content }}</textarea>
+                    <textarea name="message_content" rows="5">{{ jc.message_content }}</textarea>
                     <button class="btn btn-save" style="margin-top:4px; font-size:12px; padding:4px 12px;">Save Edits</button>
                 </form>
             </div>
             {% endif %}
 
             <form method="POST" action="/jobs/{{ job.id }}/contacts/{{ jc.id }}/unlink" style="align-self:flex-start;">
-                <button class="btn" style="background:#fee2e2;color:#b91c1c;font-size:11px;padding:3px 8px;">Unlink</button>
+                <button class="btn btn-red" style="font-size:11px; padding:3px 8px;">Unlink</button>
             </form>
         </div>
         {% endfor %}
         {% else %}
-        <p style="color:#888; font-size:13px; margin:4px 0 12px;">No contacts linked yet.</p>
+        <p style="color:#aaa; font-size:13px; margin: 0 0 8px;">No contacts linked yet.</p>
         {% endif %}
 
-        <!-- Link existing contact -->
         {% if all_contacts %}
-        <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-            <form method="POST" action="/jobs/{{ job.id }}/contacts/link" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
-                <select name="contact_id" style="font-size:13px; padding:5px 8px; border:1px solid #ccc; border-radius:6px;">
+        <div class="link-contact-row">
+            <form method="POST" action="/jobs/{{ job.id }}/contacts/link" class="inline-form">
+                <select name="contact_id">
                     {% for c in all_contacts %}
                     <option value="{{ c.id }}">{{ c.name }} — {{ c.company }}</option>
                     {% endfor %}
                 </select>
-                <select name="relationship_type" style="font-size:13px; padding:5px 8px; border:1px solid #ccc; border-radius:6px;">
+                <select name="relationship_type">
                     <option value="recruiter">Recruiter</option>
                     <option value="hiring_manager">Hiring Manager</option>
                     <option value="engineer">Engineer</option>
                     <option value="alumni">Alumni</option>
                     <option value="hr">HR</option>
                 </select>
-                <button class="btn btn-blue" style="font-size:13px;">Link Existing</button>
+                <button class="btn btn-blue" style="font-size:13px; padding:5px 12px;">Link Existing</button>
             </form>
         </div>
         {% endif %}
     </div>
 
-    <!-- Generate buttons -->
+    <!-- Generate bar -->
     <div class="generate-bar">
         <form method="POST" action="/jobs/{{ job.id }}/ai/generate?type=job_analysis">
             <button class="btn btn-ai">
-                {% if 'job_analysis' in outputs %}Regenerate Analysis{% else %}Generate Job Analysis{% endif %}
+                {% if 'job_analysis' in outputs %}Regenerate Analysis{% else %}Generate Analysis{% endif %}
             </button>
         </form>
         <form method="POST" action="/jobs/{{ job.id }}/ai/generate?type=cover_letter">
@@ -198,28 +272,28 @@
             </button>
         </form>
         {% if not profile_set %}
-        <a href="/profile"><button type="button" class="btn btn-profile">Set Up Profile</button></a>
+        <a href="/profile"><button type="button" class="btn btn-regen">Set Up Profile</button></a>
         {% endif %}
     </div>
 
     <!-- Job Analysis -->
     {% if 'job_analysis' in outputs %}
     {% set out = outputs['job_analysis'] %}
-    <div class="output-section">
-        <div class="output-header">
-            <h3 class="output-title">Job Analysis</h3>
-            <div class="output-actions">
-                <span class="output-meta">{{ out.updated_at or out.created_at }}</span>
+    <div class="section">
+        <div class="section-header">
+            <p class="section-title">Job Analysis</p>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <span class="section-meta">{{ out.updated_at or out.created_at }}</span>
                 <form method="POST" action="/jobs/{{ job.id }}/ai/{{ out.id }}/approve" style="display:inline">
                     <button class="btn btn-approve {% if out.approved %}active{% endif %}">
-                        {% if out.approved %}Approved{% else %}Approve{% endif %}
+                        {% if out.approved %}✓ Approved{% else %}Approve{% endif %}
                     </button>
                 </form>
             </div>
         </div>
         <form method="POST" action="/jobs/{{ job.id }}/ai/{{ out.id }}/save">
             <textarea class="output-content" name="content">{{ out.content }}</textarea>
-            <div style="margin-top:10px;">
+            <div class="output-footer">
                 <button type="submit" class="btn btn-save">Save Edits</button>
             </div>
         </form>
@@ -228,7 +302,7 @@
     <div class="empty-section">
         <p>No job analysis yet.</p>
         <form method="POST" action="/jobs/{{ job.id }}/ai/generate?type=job_analysis">
-            <button class="btn btn-ai">Generate Job Analysis</button>
+            <button class="btn btn-ai">Generate Analysis</button>
         </form>
     </div>
     {% endif %}
@@ -236,21 +310,21 @@
     <!-- Cover Letter -->
     {% if 'cover_letter' in outputs %}
     {% set out = outputs['cover_letter'] %}
-    <div class="output-section">
-        <div class="output-header">
-            <h3 class="output-title">Cover Letter</h3>
-            <div class="output-actions">
-                <span class="output-meta">{{ out.updated_at or out.created_at }}</span>
+    <div class="section">
+        <div class="section-header">
+            <p class="section-title">Cover Letter</p>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <span class="section-meta">{{ out.updated_at or out.created_at }}</span>
                 <form method="POST" action="/jobs/{{ job.id }}/ai/{{ out.id }}/approve" style="display:inline">
                     <button class="btn btn-approve {% if out.approved %}active{% endif %}">
-                        {% if out.approved %}Approved{% else %}Approve{% endif %}
+                        {% if out.approved %}✓ Approved{% else %}Approve{% endif %}
                     </button>
                 </form>
             </div>
         </div>
         <form method="POST" action="/jobs/{{ job.id }}/ai/{{ out.id }}/save">
             <textarea class="output-content" name="content">{{ out.content }}</textarea>
-            <div style="margin-top:10px;">
+            <div class="output-footer">
                 <button type="submit" class="btn btn-save">Save Edits</button>
             </div>
         </form>
@@ -267,33 +341,34 @@
     <!-- Recruiter Outreach -->
     {% if 'outreach' in outputs %}
     {% set out = outputs['outreach'] %}
-    <div class="output-section">
-        <div class="output-header">
-            <h3 class="output-title">Recruiter Outreach</h3>
-            <div class="output-actions">
-                <span class="output-meta">{{ out.updated_at or out.created_at }}</span>
+    <div class="section">
+        <div class="section-header">
+            <p class="section-title">Recruiter Outreach</p>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <span class="section-meta">{{ out.updated_at or out.created_at }}</span>
                 <form method="POST" action="/jobs/{{ job.id }}/ai/{{ out.id }}/approve" style="display:inline">
                     <button class="btn btn-approve {% if out.approved %}active{% endif %}">
-                        {% if out.approved %}Approved{% else %}Approve{% endif %}
+                        {% if out.approved %}✓ Approved{% else %}Approve{% endif %}
                     </button>
                 </form>
             </div>
         </div>
         <form method="POST" action="/jobs/{{ job.id }}/ai/{{ out.id }}/save">
             <textarea class="output-content" name="content">{{ out.content }}</textarea>
-            <div style="margin-top:10px;">
+            <div class="output-footer">
                 <button type="submit" class="btn btn-save">Save Edits</button>
             </div>
         </form>
     </div>
     {% else %}
     <div class="empty-section">
-        <p>No outreach messages yet.</p>
+        <p>No outreach message yet.</p>
         <form method="POST" action="/jobs/{{ job.id }}/ai/generate?type=outreach">
             <button class="btn btn-ai">Generate Outreach</button>
         </form>
     </div>
     {% endif %}
 
+</div>
 </body>
 </html>
