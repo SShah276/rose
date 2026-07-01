@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ROSE — Agent Trace</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+               margin: 0; background: #f5f5f5; color: #111; }
+        .shell { max-width: 900px; margin: 0 auto; padding: 20px; }
+
+        .nav { display: flex; align-items: center; gap: 4px; padding-bottom: 12px;
+               border-bottom: 1px solid #e5e7eb; margin-bottom: 20px; }
+        .nav-brand { font-weight: 800; font-size: 15px; color: #111; text-decoration: none;
+                     margin-right: 12px; letter-spacing: -0.3px; }
+        .nav a { text-decoration: none; color: #555; font-size: 13px; font-weight: 600;
+                 padding: 4px 9px; border-radius: 6px; }
+        .nav a:hover { background: #f3f4f6; color: #111; }
+        .nav a.active { background: #111; color: white; }
+        .nav-spacer { flex: 1; }
+
+        .page-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 18px; }
+        .page-header h1 { font-size: 18px; font-weight: 800; margin: 0; }
+        .back-link { font-size: 12px; color: #6366f1; text-decoration: none; font-weight: 600; }
+        .back-link:hover { text-decoration: underline; }
+
+        /* meta bar */
+        .meta-bar { display: flex; flex-wrap: wrap; gap: 16px; background: white;
+                    border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 18px;
+                    margin-bottom: 14px; font-size: 13px; }
+        .meta-item { display: flex; flex-direction: column; gap: 2px; }
+        .meta-label { font-size: 10px; font-weight: 700; color: #aaa; text-transform: uppercase;
+                      letter-spacing: 0.06em; }
+        .meta-value { font-weight: 600; }
+        .meta-error { color: #dc2626; font-size: 12px; margin-top: 4px; }
+
+        /* section card */
+        .card { background: white; border: 1px solid #e5e7eb; border-radius: 10px;
+                padding: 16px 20px; margin-bottom: 12px; }
+        .card-title { font-size: 11px; font-weight: 700; color: #aaa; text-transform: uppercase;
+                      letter-spacing: 0.06em; margin: 0 0 12px; display: flex;
+                      align-items: center; justify-content: space-between; }
+        .card-count { font-size: 11px; font-weight: 600; background: #f3f4f6;
+                      color: #6b7280; border-radius: 10px; padding: 1px 7px; }
+
+        /* JSON viewer */
+        pre { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 6px;
+              padding: 12px; font-size: 11.5px; line-height: 1.6; overflow-x: auto;
+              white-space: pre-wrap; word-break: break-word; margin: 0; color: #374151; }
+
+        /* plan items table */
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { text-align: left; font-size: 11px; font-weight: 700; color: #888;
+             padding: 0 12px 8px 0; border-bottom: 1px solid #f0f0f0; }
+        td { padding: 8px 12px 8px 0; border-bottom: 1px solid #f9f9f9; vertical-align: middle; }
+        tr:last-child td { border-bottom: none; }
+
+        .action-badge { display: inline-block; font-size: 10px; font-weight: 700;
+                        padding: 2px 7px; border-radius: 4px; }
+        .action-apply   { background: #dcfce7; color: #15803d; }
+        .action-review  { background: #ede9fe; color: #6d28d9; }
+        .action-follow  { background: #fef9c3; color: #854d0e; }
+        .action-message { background: #f0fdf4; color: #15803d; }
+
+        .feedback-chip { display: inline-block; font-size: 10px; font-weight: 700;
+                         padding: 2px 7px; border-radius: 10px; }
+        .fb-useful           { background: #f0fdf4; color: #15803d; }
+        .fb-not_useful       { background: #fef2f2; color: #dc2626; }
+        .fb-too_low_priority { background: #fffbeb; color: #b45309; }
+        .fb-already_handled  { background: #f0fdf4; color: #15803d; }
+        .fb-bad_reason       { background: #fef2f2; color: #dc2626; }
+
+        .muted { color: #aaa; font-size: 11px; }
+        .reason-text { font-size: 11px; color: #6b7280; }
+
+        /* collapsible */
+        details summary { cursor: pointer; user-select: none; font-size: 13px;
+                          font-weight: 600; color: #6366f1; }
+        details summary:hover { text-decoration: underline; }
+        details[open] summary { margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+<div class="shell">
+
+    <nav class="nav">
+        <a href="/jobs" class="nav-brand">ROSE</a>
+        <a href="/jobs">Jobs</a>
+        <a href="/tracker">Tracker</a>
+        <a href="/outreach">Outreach</a>
+        <a href="/profile">Profile</a>
+        <a href="/analytics">Analytics</a>
+        <div class="nav-spacer"></div>
+        <a href="/logout" style="color:#9ca3af; font-size:12px;">Logout</a>
+        <a href="/settings">Settings</a>
+    </nav>
+
+    <div class="page-header">
+        <h1>Agent Trace — {{ plan.date }}</h1>
+        <a href="/analytics" class="back-link">← Analytics</a>
+    </div>
+
+    <!-- Meta bar -->
+    <div class="meta-bar">
+        <div class="meta-item">
+            <span class="meta-label">Plan ID</span>
+            <span class="meta-value">#{{ plan.id }}</span>
+        </div>
+        <div class="meta-item">
+            <span class="meta-label">Date</span>
+            <span class="meta-value">{{ plan.date }}</span>
+        </div>
+        <div class="meta-item">
+            <span class="meta-label">Agent Version</span>
+            <span class="meta-value">{{ plan.agent_version }}</span>
+        </div>
+        <div class="meta-item">
+            <span class="meta-label">Latency</span>
+            <span class="meta-value">{% if plan.latency_ms %}{{ (plan.latency_ms / 1000) | round(1) }}s{% else %}—{% endif %}</span>
+        </div>
+        <div class="meta-item">
+            <span class="meta-label">Discovery Count</span>
+            <span class="meta-value">{{ plan.discovery_count }}</span>
+        </div>
+        <div class="meta-item">
+            <span class="meta-label">Items</span>
+            <span class="meta-value">{{ items | length }}</span>
+        </div>
+        {% if plan.error %}
+        <div style="flex-basis:100%">
+            <span class="meta-label">Errors</span>
+            <div class="meta-error">{{ plan.error }}</div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Final plan items -->
+    <div class="card">
+        <p class="card-title">
+            Final Plan Items
+            <span class="card-count">{{ items | length }}</span>
+        </p>
+        {% if items %}
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Action</th>
+                    <th>Label</th>
+                    <th>Reason</th>
+                    <th>Feedback</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for item in items %}
+            <tr>
+                <td class="muted">{{ loop.index }}</td>
+                <td>
+                    {% if item.action == "Apply" %}<span class="action-badge action-apply">Apply</span>
+                    {% elif item.action == "Review" %}<span class="action-badge action-review">Review</span>
+                    {% elif item.action == "Follow Up" %}<span class="action-badge action-follow">Follow Up</span>
+                    {% elif item.action == "Message" %}<span class="action-badge action-message">Message</span>
+                    {% else %}<span class="action-badge" style="background:#f3f4f6;color:#555;">{{ item.action }}</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if item.job_id %}
+                    <a href="/jobs/{{ item.job_id }}/ai" style="color:#111; text-decoration:none;">{{ item.label }}</a>
+                    {% else %}{{ item.label }}{% endif %}
+                    {% if item.company %}<span class="muted"> · {{ item.location or '' }}</span>{% endif %}
+                </td>
+                <td class="reason-text">{{ item.reason }}</td>
+                <td>
+                    {% if item.feedback %}
+                    <span class="feedback-chip fb-{{ item.feedback }}">{{ item.feedback | replace("_", " ") | title }}</span>
+                    {% else %}<span class="muted">—</span>{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="muted" style="text-align:center; padding:16px 0;">No items.</p>
+        {% endif %}
+    </div>
+
+    <!-- Discovery Input -->
+    <div class="card">
+        <p class="card-title">
+            Discovery Agent — Input
+            <span class="card-count">{{ plan.discovery_input | length if plan.discovery_input else 0 }} candidates</span>
+        </p>
+        {% if plan.discovery_input %}
+        <details>
+            <summary>Show {{ plan.discovery_input | length }} jobs sent to Discovery Agent</summary>
+            <pre>{{ plan.discovery_input | tojson(indent=2) }}</pre>
+        </details>
+        {% else %}
+        <p class="muted">Not recorded.</p>
+        {% endif %}
+    </div>
+
+    <!-- Discovery Output -->
+    <div class="card">
+        <p class="card-title">
+            Discovery Agent — Output
+            <span class="card-count">{{ plan.discovery_output | length if plan.discovery_output else 0 }} selected</span>
+        </p>
+        {% if plan.discovery_output %}
+        <pre>{{ plan.discovery_output | tojson(indent=2) }}</pre>
+        {% else %}
+        <p class="muted">No output recorded.</p>
+        {% endif %}
+    </div>
+
+    <!-- Evaluation Output -->
+    <div class="card">
+        <p class="card-title">
+            Evaluation Agent — Output
+            <span class="card-count">{{ plan.evaluation_output | length if plan.evaluation_output else 0 }} priorities</span>
+        </p>
+        {% if plan.evaluation_output %}
+        <pre>{{ plan.evaluation_output | tojson(indent=2) }}</pre>
+        {% else %}
+        <p class="muted">No output recorded.</p>
+        {% endif %}
+    </div>
+
+    <!-- Outreach Output -->
+    <div class="card">
+        <p class="card-title">
+            Outreach Agent — Output
+            <span class="card-count">{{ plan.outreach_output | length if plan.outreach_output else 0 }} actions</span>
+        </p>
+        {% if plan.outreach_output %}
+        <pre>{{ plan.outreach_output | tojson(indent=2) }}</pre>
+        {% else %}
+        <p class="muted">No output recorded.</p>
+        {% endif %}
+    </div>
+
+</div>
+</body>
+</html>

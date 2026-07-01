@@ -1,11 +1,22 @@
+import hmac
+import os
 from datetime import date, timedelta
 
 from dotenv import load_dotenv
 load_dotenv()
 
+import json as _json
+
 from fastapi import FastAPI, Request, UploadFile, File
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, StreamingResponse, Response
 from fastapi.templating import Jinja2Templates
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.sessions import SessionMiddleware
+
+import time as _time
+
+_SECRET_KEY  = os.environ.get("SECRET_KEY", "")
+_APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
 
 from app.db import (
     init_db, get_all_jobs,
@@ -14,10 +25,13 @@ from app.db import (
     reset_all_statuses, restore_skipped,
     get_profile, save_profile,
     get_ai_outputs, upsert_ai_output, save_ai_output_content, toggle_ai_output_approved,
-    get_all_contacts, get_contact, insert_contact, update_contact, delete_contact,
-    get_contacts_for_job, get_jobs_for_contact,
+    get_contact,
+    get_contacts_for_job, upsert_contact_by_email, upsert_contact_by_linkedin,
     link_contact_to_job, unlink_contact_from_job, get_job_contact, update_job_contact,
     get_outreach_queue,
+    get_uncontacted_job_contacts, set_plan_cache,
+    create_plan, add_plan_items, get_today_plan, set_plan_item_feedback,
+    get_plan_history, get_plan_detail, get_analytics_data,
 )
 from app.ai import (
     generate_job_analysis, generate_cover_letter, generate_outreach,
@@ -33,10 +47,64 @@ import urllib.request
 app = FastAPI()
 templates = Jinja2Templates(directory="app/templates")
 
+# ── Auth middleware (runs after SessionMiddleware populates request.session) ──
+class _AuthMiddleware(BaseHTTPMiddleware):
+    _PUBLIC = frozenset({"/login"})
+
+    async def dispatch(self, request: Request, call_next):
+        if request.url.path in self._PUBLIC:
+            return await call_next(request)
+        if not request.session.get("authenticated"):
+            return RedirectResponse(url=f"/login?next={request.url.path}", status_code=303)
+        return await call_next(request)
+
+# Order matters: last add_middleware call = outermost = runs first
+app.add_middleware(_AuthMiddleware)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=_SECRET_KEY or "dev-only-change-me",
+    max_age=86400 * 30,   # 30-day session
+    same_site="lax",
+    https_only=False,
+)
+
 
 @app.on_event("startup")
 def startup():
     init_db()
+    missing = [k for k in ("SECRET_KEY", "APP_PASSWORD", "ANTHROPIC_API_KEY") if not os.environ.get(k)]
+    if missing:
+        import warnings
+        warnings.warn(f"⚠  Missing env vars: {', '.join(missing)}", stacklevel=1)
+
+
+# ── Login / logout ──
+@app.get("/login")
+def login_page(request: Request, next: str = "/jobs"):
+    if request.session.get("authenticated"):
+        return RedirectResponse(url=next, status_code=303)
+    return templates.TemplateResponse(request=request, name="login.html", context={"next": next})
+
+
+@app.post("/login")
+async def login_post(request: Request):
+    form = await request.form()
+    password  = str(form.get("password", ""))
+    next_url  = str(form.get("next", "/jobs"))
+    if _APP_PASSWORD and hmac.compare_digest(password.encode(), _APP_PASSWORD.encode()):
+        request.session["authenticated"] = True
+        return RedirectResponse(url=next_url, status_code=303)
+    return templates.TemplateResponse(
+        request=request, name="login.html",
+        context={"error": "Incorrect password.", "next": next_url},
+        status_code=401,
+    )
+
+
+@app.get("/logout")
+def logout(request: Request):
+    request.session.clear()
+    return RedirectResponse(url="/login", status_code=303)
 
 
 @app.get("/")
@@ -97,19 +165,206 @@ def jobs_page(request: Request):
     jobs = get_all_jobs()
     ranked_jobs = rank_jobs(jobs)
     visible = [j for j in ranked_jobs if (j.get("status") or "not_applied") not in ("skipped", "closed")]
+    hidden  = [j for j in ranked_jobs if (j.get("status") or "not_applied") in ("skipped", "closed")]
+
+    # Use AI-generated plan from DB if generated today, else fall back to rule-based
+    plan_db, plan_items = get_today_plan()
+    if plan_db:
+        plan      = plan_items   # list of plan_item dicts with 'id' for feedback buttons
+        plan_meta = {
+            "source":          plan_db["source"],
+            "generated_at":    plan_db["date"],
+            "discovery_count": plan_db["discovery_count"],
+            "error":           plan_db["error"],
+            "plan_id":         plan_db["id"],
+        }
+    else:
+        plan      = _build_daily_plan(ranked_jobs)
+        plan_meta = {"source": "rules"}
+
     return templates.TemplateResponse(
         request=request,
         name="jobs.html",
         context={
-            "jobs": visible,
-            "plan": _build_daily_plan(ranked_jobs),
-            "followups": get_followups_due(),
-            "stats": get_stats(),
+            "jobs":        visible,
+            "hidden_jobs": hidden,
+            "plan":        plan,
+            "plan_meta":   plan_meta,
+            "followups":   get_followups_due(),
+            "stats":       get_stats(),
         }
     )
 
 
+@app.get("/plan/progress")
+def plan_progress(request: Request):
+    return templates.TemplateResponse(request=request, name="progress.html", context={})
+
+
+@app.get("/plan/stream")
+def plan_stream():
+    from app.agents import discovery, evaluation, outreach_agent
+
+    def _stream():
+        t0          = _time.time()
+        jobs        = get_all_jobs()
+        ranked_jobs = rank_jobs(jobs)
+        uncontacted = get_uncontacted_job_contacts()
+        profile     = get_profile()
+        errors      = []
+        today       = date.today()
+        today_str   = str(today)
+
+        # Compact snapshot of discovery candidates for trace storage
+        disc_input = [
+            {"id": j["id"], "company": j["company"], "title": j["title"],
+             "score": j.get("final_score", 0), "status": j.get("status") or "not_applied"}
+            for j in ranked_jobs
+            if (j.get("status") or "not_applied") in ("not_applied", "not_reviewed", "interested", "saved")
+        ][:20]
+
+        # Agent 1: Discovery
+        yield f"data: {_json.dumps({'step': 'discovery', 'status': 'running'})}\n\n"
+        opportunities = []
+        try:
+            opportunities = discovery.run(ranked_jobs, profile=profile)
+            yield f"data: {_json.dumps({'step': 'discovery', 'status': 'done', 'count': len(opportunities)})}\n\n"
+        except Exception as e:
+            errors.append(f"Discovery: {e}")
+            yield f"data: {_json.dumps({'step': 'discovery', 'status': 'error'})}\n\n"
+
+        # Agent 2: Evaluation
+        yield f"data: {_json.dumps({'step': 'evaluation', 'status': 'running'})}\n\n"
+        pipeline = [j for j in ranked_jobs if (j.get("status") or "not_applied") in ("interested", "saved", "applied")]
+        priorities = []
+        try:
+            priorities = evaluation.run(opportunities, pipeline, profile=profile)
+            yield f"data: {_json.dumps({'step': 'evaluation', 'status': 'done', 'count': len(priorities)})}\n\n"
+        except Exception as e:
+            errors.append(f"Evaluation: {e}")
+            yield f"data: {_json.dumps({'step': 'evaluation', 'status': 'error'})}\n\n"
+
+        # Agent 3: Outreach
+        yield f"data: {_json.dumps({'step': 'outreach', 'status': 'running'})}\n\n"
+        stale = []
+        for j in ranked_jobs:
+            if j.get("status") == "applied" and j.get("date_applied"):
+                try:
+                    days = (today - date.fromisoformat(j["date_applied"])).days
+                    if days >= 7:
+                        stale.append({**j, "days_since": days})
+                except ValueError:
+                    pass
+        outreach_actions = []
+        try:
+            outreach_actions = outreach_agent.run(uncontacted, stale, profile=profile)
+            yield f"data: {_json.dumps({'step': 'outreach', 'status': 'done', 'count': len(outreach_actions)})}\n\n"
+        except Exception as e:
+            errors.append(f"Outreach: {e}")
+            yield f"data: {_json.dumps({'step': 'outreach', 'status': 'error'})}\n\n"
+
+        # Merge plan items
+        plan = []
+        for item in priorities:
+            plan.append({"action": item.get("action", "Review"), "job_id": item.get("job_id"),
+                         "label": item.get("label", ""), "reason": item.get("reason", ""), "source": "agent"})
+        for item in outreach_actions:
+            plan.append({"action": item.get("action", "Follow Up"), "job_id": item.get("job_id"),
+                         "label": item.get("label", ""), "reason": item.get("reason", ""), "source": "agent"})
+
+        latency_ms = int((_time.time() - t0) * 1000)
+
+        # Store in plan history tables (V7)
+        plan_id = create_plan(
+            date_str          = today_str,
+            source            = "agent",
+            discovery_count   = len(opportunities),
+            error             = "; ".join(errors) if errors else None,
+            latency_ms        = latency_ms,
+            discovery_input   = disc_input,
+            discovery_output  = opportunities,
+            evaluation_output = priorities,
+            outreach_output   = outreach_actions,
+        )
+        add_plan_items(plan_id, plan)
+
+        # Keep legacy cache for backwards compat
+        set_plan_cache({
+            "plan":            plan,
+            "generated_at":    today_str,
+            "discovery_count": len(opportunities),
+            "error":           "; ".join(errors) if errors else None,
+        })
+
+        yield f"data: {_json.dumps({'step': 'complete', 'redirect': '/jobs'})}\n\n"
+
+    return StreamingResponse(
+        _stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+# ---------- plan feedback + analytics + traces ----------
+
+@app.post("/plan-items/{item_id}/feedback")
+async def plan_item_feedback(item_id: int, request: Request):
+    form = await request.form()
+    set_plan_item_feedback(item_id, form.get("feedback", ""))
+    return RedirectResponse(url="/jobs", status_code=303)
+
+
+@app.get("/analytics")
+def analytics_page(request: Request):
+    return templates.TemplateResponse(
+        request=request, name="analytics.html",
+        context={"history": get_plan_history(14), "data": get_analytics_data()}
+    )
+
+
+@app.get("/admin/traces/{plan_id}")
+def plan_trace(plan_id: int, request: Request):
+    import json as _jmod
+    plan, items = get_plan_detail(plan_id)
+    if not plan:
+        return RedirectResponse(url="/analytics", status_code=303)
+    for field in ("discovery_input", "discovery_output", "evaluation_output", "outreach_output"):
+        if plan.get(field):
+            try:
+                plan[field] = _jmod.loads(plan[field])
+            except Exception:
+                pass
+    return templates.TemplateResponse(
+        request=request, name="traces.html",
+        context={"plan": plan, "items": items}
+    )
+
+
 # ---------- job actions ----------
+
+@app.post("/jobs/bulk-action")
+async def bulk_action(request: Request):
+    form = await request.form()
+    action = str(form.get("action", ""))
+    ids = [int(x) for x in form.getlist("job_ids") if str(x).isdigit()]
+    status_map = {"skip": "skipped", "close": "closed", "restore": "not_applied"}
+    if action in status_map:
+        for job_id in ids:
+            update_application(job_id, status=status_map[action])
+    return RedirectResponse(url="/jobs", status_code=303)
+
+
+@app.post("/jobs/archive-old")
+async def archive_old_jobs():
+    cutoff = str(date.today() - timedelta(days=14))
+    jobs = get_all_jobs()
+    for j in jobs:
+        status = j.get("status") or "not_applied"
+        date_found = j.get("date_found") or ""
+        if status in ("not_applied", "not_reviewed") and date_found and date_found < cutoff:
+            update_application(j["id"], status="closed")
+    return RedirectResponse(url="/jobs", status_code=303)
+
 
 @app.post("/jobs/{job_id}/action")
 async def job_action(job_id: int, request: Request):
@@ -365,12 +620,11 @@ def job_ai_page(job_id: int, request: Request):
         request=request,
         name="job_ai.html",
         context={
-            "job": job,
-            "outputs": get_ai_outputs(job_id),
+            "job":          job,
+            "outputs":      get_ai_outputs(job_id),
             "job_contacts": get_contacts_for_job(job_id),
-            "all_contacts": get_all_contacts(),
-            "profile_set": bool(get_profile().get("name")),
-            "today": str(date.today()),
+            "profile_set":  bool(get_profile().get("name")),
+            "today":        str(date.today()),
         }
     )
 
@@ -387,7 +641,12 @@ async def ai_generate(job_id: int, request: Request, type: str = "job_analysis")
 
     error = None
     try:
-        content = _AI_GENERATORS[type](job, get_profile())
+        profile = get_profile()
+        if type == "cover_letter":
+            template = get_setting("cover_letter_template") or None
+            content = generate_cover_letter(job, profile, template=template)
+        else:
+            content = _AI_GENERATORS[type](job, profile)
         upsert_ai_output(job_id, type, content)
     except Exception as e:
         error = str(e)
@@ -396,10 +655,12 @@ async def ai_generate(job_id: int, request: Request, type: str = "job_analysis")
         request=request,
         name="job_ai.html",
         context={
-            "job": job,
-            "outputs": get_ai_outputs(job_id),
-            "profile_set": bool(get_profile().get("name")),
-            "error": error,
+            "job":          job,
+            "outputs":      get_ai_outputs(job_id),
+            "job_contacts": get_contacts_for_job(job_id),
+            "profile_set":  bool(get_profile().get("name")),
+            "today":        str(date.today()),
+            "error":        error,
         }
     )
 
@@ -418,72 +679,109 @@ def ai_approve_output(job_id: int, output_id: int):
     return RedirectResponse(url=f"/jobs/{job_id}/ai", status_code=303)
 
 
-# ---------- contacts ----------
-
-@app.get("/contacts")
-def contacts_page(request: Request):
-    return templates.TemplateResponse(
-        request=request, name="contacts.html",
-        context={"contacts": get_all_contacts()}
-    )
-
-
-@app.get("/contacts/new")
-def contact_new_form(request: Request, job_id: int = None, relationship_type: str = "recruiter"):
-    return templates.TemplateResponse(
-        request=request, name="contact_form.html",
-        context={"contact": {}, "job_id": job_id, "relationship_type": relationship_type, "editing": False}
-    )
-
-
-@app.post("/contacts")
-async def create_contact(request: Request):
-    form = await request.form()
-    data = dict(form)
-    job_id = data.pop("job_id", None)
-    rel_type = data.pop("relationship_type", "recruiter")
-    contact_id = insert_contact(data)
-    if job_id:
-        link_contact_to_job(int(job_id), contact_id, rel_type)
+@app.get("/jobs/{job_id}/cover-letter/pdf")
+def cover_letter_pdf(job_id: int):
+    from app.pdf import cover_letter_to_pdf
+    jobs = get_all_jobs()
+    job  = next((j for j in jobs if j["id"] == job_id), None)
+    if not job:
+        return RedirectResponse(url="/jobs", status_code=303)
+    outputs = get_ai_outputs(job_id)
+    cl = outputs.get("cover_letter")
+    if not cl:
         return RedirectResponse(url=f"/jobs/{job_id}/ai", status_code=303)
-    return RedirectResponse(url="/contacts", status_code=303)
-
-
-@app.get("/contacts/{contact_id}/edit")
-def contact_edit_form(contact_id: int, request: Request):
-    contact = get_contact(contact_id)
-    if not contact:
-        return RedirectResponse(url="/contacts", status_code=303)
-    return templates.TemplateResponse(
-        request=request, name="contact_form.html",
-        context={"contact": contact, "job_id": None, "relationship_type": None, "editing": True}
+    profile = get_profile()
+    first_name = (profile.get("name") or "").split()[0] or "Shreyas"
+    pdf_bytes = cover_letter_to_pdf(
+        company=job["company"],
+        title=job["title"],
+        content=cl["content"],
+        location=job.get("location") or "",
+        candidate_name=first_name,
+    )
+    slug = job["company"].replace(" ", "_").replace("/", "_")
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="CoverLetter_{slug}.pdf"'},
     )
 
 
-@app.post("/contacts/{contact_id}/edit")
-async def save_contact(contact_id: int, request: Request):
-    form = await request.form()
-    update_contact(contact_id, dict(form))
-    return RedirectResponse(url="/contacts", status_code=303)
+@app.post("/jobs/{job_id}/find-recruiters/linkedin")
+def find_linkedin_recruiters(job_id: int, request: Request):
+    from app.agents.contact_finder import run_linkedin
+    jobs = get_all_jobs()
+    job  = next((j for j in jobs if j["id"] == job_id), None)
+    if not job:
+        return RedirectResponse(url="/jobs", status_code=303)
+
+    result = run_linkedin(job["company"])
+
+    if not result.get("error") and result.get("contacts"):
+        for c in result["contacts"]:
+            contact_id = upsert_contact_by_linkedin({
+                "company":      job["company"],
+                "name":         c["name"],
+                "title":        c["position"],
+                "email":        "",
+                "linkedin_url": c["linkedin"],
+                "source":       "linkedin",
+                "confidence_score": 0,
+            })
+            link_contact_to_job(job_id, contact_id, "recruiter")
+
+    return templates.TemplateResponse(
+        request=request, name="job_ai.html",
+        context={
+            "job":            job,
+            "outputs":        get_ai_outputs(job_id),
+            "job_contacts":   get_contacts_for_job(job_id),
+            "profile_set":    bool(get_profile().get("name")),
+            "today":          str(date.today()),
+            "linkedin_result": result,
+        }
+    )
 
 
-@app.post("/contacts/{contact_id}/delete")
-def remove_contact(contact_id: int):
-    delete_contact(contact_id)
-    return RedirectResponse(url="/contacts", status_code=303)
+@app.post("/jobs/{job_id}/find-contacts")
+def find_job_contacts(job_id: int, request: Request):
+    from app.agents.contact_finder import run as find_contacts
+    jobs = get_all_jobs()
+    job  = next((j for j in jobs if j["id"] == job_id), None)
+    if not job:
+        return RedirectResponse(url="/jobs", status_code=303)
+
+    result = find_contacts(job["company"], job.get("title", ""))
+
+    if not result.get("error") and result.get("contacts"):
+        for c in result["contacts"]:
+            if c["email"]:
+                contact_id = upsert_contact_by_email({
+                    "company":          job["company"],
+                    "name":             c["name"],
+                    "title":            c["position"],
+                    "email":            c["email"],
+                    "linkedin_url":     c["linkedin"],
+                    "source":           "hunter",
+                    "confidence_score": c["confidence"],
+                    "notes":            c.get("department", ""),
+                })
+                link_contact_to_job(job_id, contact_id, "recruiter")
+
+    return templates.TemplateResponse(
+        request=request, name="job_ai.html",
+        context={
+            "job":           job,
+            "outputs":       get_ai_outputs(job_id),
+            "job_contacts":  get_contacts_for_job(job_id),
+            "profile_set":   bool(get_profile().get("name")),
+            "today":         str(date.today()),
+            "hunter_result": result,
+        }
+    )
 
 
-# ---------- job ↔ contact linking ----------
-
-@app.post("/jobs/{job_id}/contacts/link")
-async def link_contact(job_id: int, request: Request):
-    form = await request.form()
-    contact_id = int(form.get("contact_id", 0))
-    rel_type = form.get("relationship_type", "recruiter")
-    if contact_id:
-        link_contact_to_job(job_id, contact_id, rel_type)
-    return RedirectResponse(url=f"/jobs/{job_id}/ai", status_code=303)
-
+# ---------- contacts (AI-discovered only — manual CRUD removed) ----------
 
 @app.post("/jobs/{job_id}/contacts/{jc_id}/unlink")
 def unlink_contact(job_id: int, jc_id: int):
@@ -516,7 +814,6 @@ def jc_generate_message(jc_id: int, request: Request):
             context={
                 "job": job, "outputs": get_ai_outputs(jc["job_id"]),
                 "job_contacts": get_contacts_for_job(jc["job_id"]),
-                "all_contacts": get_all_contacts(),
                 "profile_set": bool(get_profile().get("name")),
                 "today": str(date.today()), "error": error,
             }
@@ -607,7 +904,13 @@ _WEIGHT_KEYS = [
 @app.get("/settings")
 def settings_page(request: Request):
     weights = {key: float(get_setting(key, "0.0")) for key in _WEIGHT_KEYS}
-    return templates.TemplateResponse(request=request, name="settings.html", context={"weights": weights})
+    return templates.TemplateResponse(
+        request=request, name="settings.html",
+        context={
+            "weights": weights,
+            "cover_letter_template": get_setting("cover_letter_template") or "",
+        }
+    )
 
 
 @app.post("/settings")
@@ -619,4 +922,6 @@ async def save_settings(request: Request):
                 set_setting(key, str(round(float(form[key]), 4)))
             except ValueError:
                 pass
+    if "cover_letter_template" in form:
+        set_setting("cover_letter_template", str(form["cover_letter_template"]).strip())
     return RedirectResponse(url="/settings", status_code=303)

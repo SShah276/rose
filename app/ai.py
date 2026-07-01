@@ -101,11 +101,42 @@ Write exactly these sections:
     return resp.content[0].text
 
 
-def generate_cover_letter(job: dict, profile: dict) -> str:
+def generate_cover_letter(job: dict, profile: dict, template: str | None = None) -> str:
     client = _get_client()
     system = _SYSTEM_BASE + f"\n\nCandidate Profile:\n{_format_profile(profile)}"
 
-    prompt = f"""Write a cover letter for this internship application.
+    if template and template.strip():
+        prompt = f"""I have a cover letter I wrote that captures my exact voice, tone, and experiences. \
+Adapt it for a new job application while preserving my writing style as closely as possible.
+
+MY ORIGINAL COVER LETTER:
+---
+{template.strip()}
+---
+
+NEW JOB:
+Company: {job.get('company', '?')}
+Title: {job.get('title', '?')}
+Role Type: {job.get('role_type', '?')}
+Description: {job.get('description') or 'Not provided'}
+
+Instructions:
+- Keep my sentence structure, vocabulary, and tone intact wherever possible
+- Replace company-specific names/references with the new company name
+- Update role title and department references to match the new job
+- Keep all personal experiences and projects — only re-frame if the new role demands it
+- Adjust the opening hook so it speaks to THIS company's industry or mission
+- Match the original approximate length
+
+CRITICAL OUTPUT FORMAT:
+- Output ONLY the letter body paragraphs — nothing else
+- Do NOT write "Here is the adapted cover letter", "---", or any prefix/preamble
+- Do NOT add notes, feedback, suggestions, or commentary after the letter
+- Do NOT include a date, address, salutation, or sign-off — those are added separately
+- Just the paragraphs, separated by a blank line"""
+        max_tokens = 900
+    else:
+        prompt = f"""Write a cover letter for this internship application.
 
 Company: {job.get('company', '?')}
 Title: {job.get('title', '?')}
@@ -121,10 +152,11 @@ Requirements:
 - Do NOT start with "I am writing to apply for..."
 
 Output only the letter body — no salutation, no headers, no sign-off."""
+        max_tokens = 600
 
     resp = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=600,
+        max_tokens=max_tokens,
         system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
         messages=[{"role": "user", "content": prompt}],
     )

@@ -1,8 +1,10 @@
+import os
 import sqlite3
 from pathlib import Path
 from datetime import date, timedelta
 
-DB_PATH = Path(__file__).resolve().parent.parent / "jobs.db"
+_db_url = os.environ.get("DATABASE_URL", "")
+DB_PATH = Path(_db_url) if _db_url else Path(__file__).resolve().parent.parent / "jobs.db"
 
 
 def get_connection():
@@ -19,6 +21,44 @@ def _migrate_v3(conn):
             cursor.execute(f"ALTER TABLE applications ADD COLUMN {col} {typedef}")
         except sqlite3.OperationalError:
             pass
+
+
+def _migrate_v7(conn):
+    """Add V7 plan history tables: plans + plan_items."""
+    cursor = conn.cursor()
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS plans (
+        id                INTEGER PRIMARY KEY AUTOINCREMENT,
+        date              TEXT NOT NULL,
+        source            TEXT DEFAULT 'agent',
+        agent_version     TEXT DEFAULT 'v7',
+        discovery_count   INTEGER DEFAULT 0,
+        error             TEXT,
+        latency_ms        INTEGER,
+        discovery_input   TEXT,
+        discovery_output  TEXT,
+        evaluation_output TEXT,
+        outreach_output   TEXT,
+        created_at        TEXT NOT NULL
+    )
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS plan_items (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        plan_id     INTEGER NOT NULL,
+        job_id      INTEGER,
+        action      TEXT NOT NULL,
+        label       TEXT,
+        reason      TEXT,
+        source      TEXT DEFAULT 'agent',
+        outcome     TEXT DEFAULT 'recommended',
+        feedback    TEXT,
+        feedback_at TEXT,
+        created_at  TEXT NOT NULL,
+        FOREIGN KEY(plan_id) REFERENCES plans(id),
+        FOREIGN KEY(job_id)  REFERENCES jobs(id)
+    )
+    """)
 
 
 def _migrate_v6(conn):
@@ -181,6 +221,7 @@ def init_db():
 
     _migrate_v3(conn)
     _migrate_v6(conn)
+    _migrate_v7(conn)
     conn.commit()
     conn.close()
 
@@ -485,6 +526,60 @@ def restore_skipped():
     conn.close()
 
 
+def get_uncontacted_job_contacts() -> list:
+    """Returns job_contacts with status='not_contacted', joined with contact + job info."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT jc.id, jc.job_id, jc.relationship_type, jc.status,
+               c.name as contact_name, c.title as contact_title,
+               c.email, c.linkedin_url,
+               j.company, j.title as job_title, j.location, j.role_type
+        FROM job_contacts jc
+        JOIN contacts c ON c.id = jc.contact_id
+        JOIN jobs j ON j.id = jc.job_id
+        WHERE jc.status = 'not_contacted'
+          AND j.is_active = 1
+        ORDER BY jc.created_at DESC
+    """)
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_plan_cache() -> dict | None:
+    """Returns cached daily plan if it was generated today, else None."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT value FROM settings WHERE key = 'daily_plan_json'")
+    plan_row = cursor.fetchone()
+    cursor.execute("SELECT value FROM settings WHERE key = 'daily_plan_date'")
+    date_row = cursor.fetchone()
+    conn.close()
+    if not plan_row or not date_row:
+        return None
+    if date_row["value"] != str(date.today()):
+        return None
+    import json
+    try:
+        return json.loads(plan_row["value"])
+    except Exception:
+        return None
+
+
+def set_plan_cache(plan: dict):
+    """Stores plan dict in settings table, tagged with today's date."""
+    import json
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+                   ("daily_plan_json", json.dumps(plan)))
+    cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+                   ("daily_plan_date", str(date.today())))
+    conn.commit()
+    conn.close()
+
+
 def get_setting(key: str, default: str = "") -> str:
     conn = get_connection()
     cursor = conn.cursor()
@@ -615,6 +710,34 @@ def get_contact(contact_id: int) -> dict:
     return dict(row) if row else {}
 
 
+def upsert_contact_by_email(data: dict) -> int:
+    """Return existing contact_id if email already in DB, else insert and return new id."""
+    email = (data.get("email") or "").strip().lower()
+    if email:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM contacts WHERE LOWER(email) = ?", (email,))
+        row = cursor.fetchone()
+        conn.close()
+        if row:
+            return row["id"]
+    return insert_contact(data)
+
+
+def upsert_contact_by_linkedin(data: dict) -> int:
+    """Return existing contact_id if LinkedIn URL already in DB, else insert."""
+    linkedin = (data.get("linkedin_url") or "").strip()
+    if linkedin:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM contacts WHERE linkedin_url = ?", (linkedin,))
+        row = cursor.fetchone()
+        conn.close()
+        if row:
+            return row["id"]
+    return insert_contact(data)
+
+
 def insert_contact(data: dict) -> int:
     safe = {k: data.get(k, "") for k in _CONTACT_FIELDS}
     safe["confidence_score"] = int(safe.get("confidence_score") or 100)
@@ -657,7 +780,8 @@ def get_contacts_for_job(job_id: int) -> list:
     cursor = conn.cursor()
     cursor.execute("""
         SELECT jc.*, c.name as contact_name, c.title as contact_title,
-               c.email, c.linkedin_url, c.company as contact_company
+               c.email, c.linkedin_url, c.company as contact_company,
+               c.source as contact_source, c.confidence_score
         FROM job_contacts jc
         JOIN contacts c ON c.id = jc.contact_id
         WHERE jc.job_id = ?
@@ -783,3 +907,176 @@ def get_outreach_queue() -> dict:
 
     conn.close()
     return {"drafts": drafts, "follow_ups": follow_ups, "responded": responded}
+
+
+# ---------- V7: plan history ----------
+
+def create_plan(date_str: str, source: str = "agent", discovery_count: int = 0,
+                error: str = None, latency_ms: int = None,
+                discovery_input=None, discovery_output=None,
+                evaluation_output=None, outreach_output=None) -> int:
+    import json as _j
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO plans (date, source, agent_version, discovery_count, error, latency_ms,
+                           discovery_input, discovery_output, evaluation_output, outreach_output, created_at)
+        VALUES (?, ?, 'v7', ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        date_str, source, discovery_count, error, latency_ms,
+        _j.dumps(discovery_input)   if discovery_input   is not None else None,
+        _j.dumps(discovery_output)  if discovery_output  is not None else None,
+        _j.dumps(evaluation_output) if evaluation_output is not None else None,
+        _j.dumps(outreach_output)   if outreach_output   is not None else None,
+        date_str,
+    ))
+    plan_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return plan_id
+
+
+def add_plan_items(plan_id: int, items: list[dict]):
+    now = str(date.today())
+    conn = get_connection()
+    cursor = conn.cursor()
+    for item in items:
+        cursor.execute("""
+            INSERT INTO plan_items (plan_id, job_id, action, label, reason, source, outcome, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, 'recommended', ?)
+        """, (
+            plan_id,
+            item.get("job_id"),
+            item.get("action", "Review"),
+            item.get("label", ""),
+            item.get("reason", ""),
+            item.get("source", "agent"),
+            now,
+        ))
+    conn.commit()
+    conn.close()
+
+
+def get_today_plan() -> tuple[dict | None, list[dict]]:
+    """Return (plan_meta, items) for the most recent plan created today, or (None, [])."""
+    today = str(date.today())
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM plans WHERE date = ? ORDER BY id DESC LIMIT 1", (today,))
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        return None, []
+    plan = dict(row)
+    cursor.execute("SELECT * FROM plan_items WHERE plan_id = ? ORDER BY id", (plan["id"],))
+    items = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return plan, items
+
+
+def set_plan_item_feedback(item_id: int, feedback: str):
+    _allowed = {"useful", "not_useful", "too_low_priority", "already_handled", "bad_reason"}
+    if feedback not in _allowed:
+        return
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE plan_items SET feedback = ?, feedback_at = ? WHERE id = ?",
+        (feedback, str(date.today()), item_id),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_plan_history(limit: int = 30) -> list[dict]:
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT p.*,
+               COUNT(pi.id) as item_count,
+               SUM(CASE WHEN pi.feedback = 'useful' THEN 1 ELSE 0 END) as useful_count,
+               SUM(CASE WHEN pi.feedback IN ('not_useful','too_low_priority','already_handled','bad_reason')
+                        THEN 1 ELSE 0 END) as negative_count
+        FROM plans p
+        LEFT JOIN plan_items pi ON pi.plan_id = p.id
+        GROUP BY p.id
+        ORDER BY p.id DESC
+        LIMIT ?
+    """, (limit,))
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_plan_detail(plan_id: int) -> tuple[dict | None, list[dict]]:
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM plans WHERE id = ?", (plan_id,))
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        return None, []
+    plan = dict(row)
+    cursor.execute("""
+        SELECT pi.*, j.company, j.title as job_title, j.location, j.role_type
+        FROM plan_items pi
+        LEFT JOIN jobs j ON j.id = pi.job_id
+        WHERE pi.plan_id = ?
+        ORDER BY pi.id
+    """, (plan_id,))
+    items = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return plan, items
+
+
+def get_analytics_data() -> dict:
+    conn = get_connection()
+    cursor = conn.cursor()
+    week_ago = str(date.today() - timedelta(days=7))
+
+    cursor.execute("SELECT COUNT(*) FROM plans WHERE source = 'agent'")
+    total_plans = cursor.fetchone()[0]
+
+    cursor.execute("SELECT COUNT(*) FROM plan_items WHERE created_at >= ?", (week_ago,))
+    items_this_week = cursor.fetchone()[0]
+
+    cursor.execute("SELECT COUNT(*) FROM plan_items")
+    total_items = cursor.fetchone()[0]
+
+    cursor.execute("""
+        SELECT feedback, COUNT(*) as cnt FROM plan_items
+        WHERE feedback IS NOT NULL GROUP BY feedback ORDER BY cnt DESC
+    """)
+    feedback_counts = dict(cursor.fetchall())
+
+    cursor.execute("""
+        SELECT action,
+               COUNT(*) as total,
+               SUM(CASE WHEN feedback = 'useful' THEN 1 ELSE 0 END) as useful,
+               SUM(CASE WHEN feedback IN ('not_useful','too_low_priority','already_handled','bad_reason')
+                        THEN 1 ELSE 0 END) as negative
+        FROM plan_items GROUP BY action ORDER BY total DESC
+    """)
+    by_action = [
+        {"action": r[0], "total": r[1], "useful": r[2], "negative": r[3]}
+        for r in cursor.fetchall()
+    ]
+
+    conn.close()
+
+    useful   = feedback_counts.get("useful", 0)
+    negative = sum(feedback_counts.get(k, 0)
+                   for k in ("not_useful", "too_low_priority", "already_handled", "bad_reason"))
+    total_feedback = useful + negative
+
+    return {
+        "total_plans":     total_plans,
+        "items_this_week": items_this_week,
+        "total_items":     total_items,
+        "feedback_counts": feedback_counts,
+        "by_action":       by_action,
+        "useful":          useful,
+        "negative":        negative,
+        "feedback_rate":   round(total_feedback / total_items * 100) if total_items > 0 else 0,
+        "useful_rate":     round(useful / total_feedback * 100)      if total_feedback > 0 else 0,
+    }

@@ -38,10 +38,11 @@
         .section { background: white; border: 1px solid #e5e7eb; border-radius: 10px;
                    padding: 16px 18px; margin-bottom: 12px; }
         .section-header { display: flex; justify-content: space-between; align-items: center;
-                          margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
-        .section-title { font-size: 11px; font-weight: 700; color: #aaa; text-transform: uppercase;
-                         letter-spacing: 0.06em; margin: 0; }
-        .section-meta { font-size: 11px; color: #bbb; }
+                          margin-bottom: 14px; flex-wrap: wrap; gap: 8px;
+                          border-bottom: 1px solid #f3f4f6; padding-bottom: 12px; }
+        .section-title { font-size: 12px; font-weight: 800; color: #374151; text-transform: uppercase;
+                         letter-spacing: 0.08em; margin: 0; }
+        .section-meta { font-size: 11px; color: #9ca3af; }
 
         /* Buttons */
         .btn { border: none; border-radius: 6px; padding: 5px 12px; font-size: 12px;
@@ -67,11 +68,33 @@
 
         /* Output textarea */
         textarea.output-content {
-            width: 100%; min-height: 220px; padding: 11px; border: 1px solid #e5e7eb;
-            border-radius: 7px; font-size: 13px; font-family: 'Courier New', monospace;
-            line-height: 1.6; resize: vertical; color: #111; background: #fafafa;
+            width: 100%; min-height: 240px; padding: 14px 16px; border: 1px solid #e5e7eb;
+            border-radius: 8px; font-size: 14px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            line-height: 1.75; resize: vertical; color: #1a1a1a; background: #fff;
+            letter-spacing: 0.01em;
         }
-        textarea.output-content:focus { outline: none; border-color: #7c3aed; background: white; }
+        textarea.output-content:focus { outline: none; border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124,58,237,0.08); }
+
+        /* AI loading overlay */
+        @keyframes ai-spin { to { transform: rotate(360deg); } }
+        .ai-spinner { width: 40px; height: 40px; border: 3px solid #e5e7eb;
+                      border-top-color: #7c3aed; border-radius: 50%;
+                      animation: ai-spin 0.75s linear infinite; margin: 0 auto 18px; }
+        @keyframes ai-dots { 0%,80%,100%{opacity:.2} 40%{opacity:1} }
+        .ai-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+                  background: #c4b5fd; margin: 0 2px;
+                  animation: ai-dots 1.4s infinite ease-in-out both; }
+        .ai-dot:nth-child(2) { animation-delay: 0.2s; }
+        .ai-dot:nth-child(3) { animation-delay: 0.4s; }
+        #ai-overlay { display: none; position: fixed; inset: 0; background: rgba(17,17,17,0.55);
+                      backdrop-filter: blur(2px); z-index: 999;
+                      align-items: center; justify-content: center; }
+        #ai-overlay.visible { display: flex; }
+        .ai-overlay-card { background: white; border-radius: 16px; padding: 36px 44px;
+                           text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.2); max-width: 300px; }
+        .ai-overlay-title { font-size: 16px; font-weight: 800; color: #111; margin: 0 0 6px; }
+        .ai-overlay-sub { font-size: 13px; color: #888; margin: 0 0 16px; }
 
         .output-footer { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
 
@@ -118,7 +141,6 @@
             resize: vertical; color: #111; background: #fafafa;
         }
 
-        .link-contact-row { margin-top: 12px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
         select { padding: 5px 8px; border: 1px solid #e5e7eb; border-radius: 6px;
                  font-size: 13px; color: #111; font-family: inherit; }
         select:focus { outline: none; border-color: #6366f1; }
@@ -135,9 +157,10 @@
         <a href="/jobs" class="active">Jobs</a>
         <a href="/tracker">Tracker</a>
         <a href="/outreach">Outreach</a>
-        <a href="/contacts">Contacts</a>
         <a href="/profile">Profile</a>
+        <a href="/analytics">Analytics</a>
         <div class="nav-spacer"></div>
+        <a href="/logout" style="color:#9ca3af; font-size:12px;">Logout</a>
         <a href="/settings">Settings</a>
     </nav>
 
@@ -166,13 +189,46 @@
     </div>
     {% endif %}
 
-    <!-- Contacts & Outreach -->
+    <!-- Recruiter Discovery & Outreach -->
     <div class="section">
         <div class="section-header">
-            <p class="section-title">Contacts & Outreach</p>
-            <a href="/contacts/new?job_id={{ job.id }}&relationship_type=recruiter"
-               style="font-size:12px; font-weight:700; color:#2563eb;">+ Add Contact</a>
+            <p class="section-title">Recruiter Contacts</p>
+            <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+                <form method="POST" action="/jobs/{{ job.id }}/find-recruiters/linkedin" data-ai>
+                    <button class="btn btn-blue" style="font-size:12px; padding:5px 13px;">🔍 Find on LinkedIn</button>
+                </form>
+                <form method="POST" action="/jobs/{{ job.id }}/find-contacts" data-ai>
+                    <button class="btn" style="font-size:11px; padding:5px 10px; background:#f3f4f6; color:#6b7280; border:1px solid #e5e7eb;">Hunter.io</button>
+                </form>
+            </div>
         </div>
+
+        {% if linkedin_result %}
+            {% if linkedin_result.error %}
+            <div class="alert alert-error" style="margin-bottom:10px;">{{ linkedin_result.error }}</div>
+            {% else %}
+            <div style="font-size:12px; color:#1d4ed8; background:#eff6ff; border:1px solid #bfdbfe;
+                        border-radius:6px; padding:7px 12px; margin-bottom:10px;">
+                Found {{ linkedin_result.contacts | length }} recruiter(s) on LinkedIn for
+                <strong>{{ job.company }}</strong>
+            </div>
+            {% endif %}
+        {% endif %}
+
+        {% if hunter_result %}
+            {% if hunter_result.error %}
+            <div class="alert alert-error" style="margin-bottom:10px;">{{ hunter_result.error }}</div>
+            {% else %}
+            <div style="font-size:12px; color:#15803d; background:#f0fdf4; border:1px solid #86efac;
+                        border-radius:6px; padding:7px 12px; margin-bottom:10px;">
+                Found {{ hunter_result.contacts | length }} contact(s) via Hunter.io at
+                <strong>{{ hunter_result.domain }}</strong>
+                {% if hunter_result.email_pattern %}
+                · Email pattern: <code style="font-size:11px;">{{ hunter_result.email_pattern }}</code>
+                {% endif %}
+            </div>
+            {% endif %}
+        {% endif %}
 
         {% if job_contacts %}
         {% for jc in job_contacts %}
@@ -181,12 +237,21 @@
                 <div class="contact-name">
                     {{ jc.contact_name }}
                     <span class="rel-badge rel-{{ jc.relationship_type }}">{{ jc.relationship_type | replace('_',' ') }}</span>
+                    {% if jc.contact_source == 'linkedin' %}
+                    <span style="font-size:10px; background:#dbeafe; color:#1d4ed8; border-radius:4px;
+                                 padding:1px 5px; margin-left:4px; font-weight:700;">LinkedIn</span>
+                    {% elif jc.contact_source == 'hunter' %}
+                    <span style="font-size:10px; background:#ede9fe; color:#6d28d9; border-radius:4px;
+                                 padding:1px 5px; margin-left:4px; font-weight:700;">
+                        {% if jc.confidence_score %}{{ jc.confidence_score }}% · {% endif %}Hunter.io
+                    </span>
+                    {% endif %}
                 </div>
                 <div class="contact-sub">{{ jc.contact_title or '' }}</div>
                 <div class="contact-links">
                     {% if jc.email %}<a href="mailto:{{ jc.email }}">{{ jc.email }}</a>{% endif %}
                     {% if jc.email and jc.linkedin_url %} · {% endif %}
-                    {% if jc.linkedin_url %}<a href="{{ jc.linkedin_url }}" target="_blank">LinkedIn</a>{% endif %}
+                    {% if jc.linkedin_url %}<a href="{{ jc.linkedin_url }}" target="_blank">LinkedIn →</a>{% endif %}
                 </div>
             </div>
 
@@ -194,7 +259,7 @@
                 <span class="status-dot status-{{ jc.status }}">{{ jc.status | replace('_',' ') | title }}</span>
 
                 {% if jc.status == 'not_contacted' %}
-                <form method="POST" action="/job-contacts/{{ jc.id }}/generate">
+                <form method="POST" action="/job-contacts/{{ jc.id }}/generate" data-ai>
                     <button class="btn btn-ai" style="font-size:12px; padding:4px 10px;">Generate Message</button>
                 </form>
 
@@ -225,48 +290,30 @@
             {% endif %}
 
             <form method="POST" action="/jobs/{{ job.id }}/contacts/{{ jc.id }}/unlink" style="align-self:flex-start;">
-                <button class="btn btn-red" style="font-size:11px; padding:3px 8px;">Unlink</button>
+                <button class="btn btn-red" style="font-size:11px; padding:3px 8px;">Remove</button>
             </form>
         </div>
         {% endfor %}
         {% else %}
-        <p style="color:#aaa; font-size:13px; margin: 0 0 8px;">No contacts linked yet.</p>
-        {% endif %}
-
-        {% if all_contacts %}
-        <div class="link-contact-row">
-            <form method="POST" action="/jobs/{{ job.id }}/contacts/link" class="inline-form">
-                <select name="contact_id">
-                    {% for c in all_contacts %}
-                    <option value="{{ c.id }}">{{ c.name }} — {{ c.company }}</option>
-                    {% endfor %}
-                </select>
-                <select name="relationship_type">
-                    <option value="recruiter">Recruiter</option>
-                    <option value="hiring_manager">Hiring Manager</option>
-                    <option value="engineer">Engineer</option>
-                    <option value="alumni">Alumni</option>
-                    <option value="hr">HR</option>
-                </select>
-                <button class="btn btn-blue" style="font-size:13px; padding:5px 12px;">Link Existing</button>
-            </form>
-        </div>
+        <p style="color:#bbb; font-size:13px; margin:0;">
+            No recruiters found yet — click <strong>Find on LinkedIn</strong> to search for US-based technical recruiters, or <strong>Hunter.io</strong> to search by email.
+        </p>
         {% endif %}
     </div>
 
     <!-- Generate bar -->
     <div class="generate-bar">
-        <form method="POST" action="/jobs/{{ job.id }}/ai/generate?type=job_analysis">
+        <form method="POST" action="/jobs/{{ job.id }}/ai/generate?type=job_analysis" data-ai>
             <button class="btn btn-ai">
                 {% if 'job_analysis' in outputs %}Regenerate Analysis{% else %}Generate Analysis{% endif %}
             </button>
         </form>
-        <form method="POST" action="/jobs/{{ job.id }}/ai/generate?type=cover_letter">
+        <form method="POST" action="/jobs/{{ job.id }}/ai/generate?type=cover_letter" data-ai>
             <button class="btn btn-ai">
                 {% if 'cover_letter' in outputs %}Regenerate Cover Letter{% else %}Generate Cover Letter{% endif %}
             </button>
         </form>
-        <form method="POST" action="/jobs/{{ job.id }}/ai/generate?type=outreach">
+        <form method="POST" action="/jobs/{{ job.id }}/ai/generate?type=outreach" data-ai>
             <button class="btn btn-ai">
                 {% if 'outreach' in outputs %}Regenerate Outreach{% else %}Generate Outreach{% endif %}
             </button>
@@ -301,7 +348,7 @@
     {% else %}
     <div class="empty-section">
         <p>No job analysis yet.</p>
-        <form method="POST" action="/jobs/{{ job.id }}/ai/generate?type=job_analysis">
+        <form method="POST" action="/jobs/{{ job.id }}/ai/generate?type=job_analysis" data-ai>
             <button class="btn btn-ai">Generate Analysis</button>
         </form>
     </div>
@@ -315,6 +362,11 @@
             <p class="section-title">Cover Letter</p>
             <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                 <span class="section-meta">{{ out.updated_at or out.created_at }}</span>
+                <a href="/jobs/{{ job.id }}/cover-letter/pdf"
+                   class="btn btn-green"
+                   style="font-size:12px; padding:4px 12px; text-decoration:none;">
+                    ↓ Download PDF
+                </a>
                 <form method="POST" action="/jobs/{{ job.id }}/ai/{{ out.id }}/approve" style="display:inline">
                     <button class="btn btn-approve {% if out.approved %}active{% endif %}">
                         {% if out.approved %}✓ Approved{% else %}Approve{% endif %}
@@ -332,7 +384,7 @@
     {% else %}
     <div class="empty-section">
         <p>No cover letter yet.</p>
-        <form method="POST" action="/jobs/{{ job.id }}/ai/generate?type=cover_letter">
+        <form method="POST" action="/jobs/{{ job.id }}/ai/generate?type=cover_letter" data-ai>
             <button class="btn btn-ai">Generate Cover Letter</button>
         </form>
     </div>
@@ -363,12 +415,60 @@
     {% else %}
     <div class="empty-section">
         <p>No outreach message yet.</p>
-        <form method="POST" action="/jobs/{{ job.id }}/ai/generate?type=outreach">
+        <form method="POST" action="/jobs/{{ job.id }}/ai/generate?type=outreach" data-ai>
             <button class="btn btn-ai">Generate Outreach</button>
         </form>
     </div>
     {% endif %}
 
 </div>
+
+<!-- AI loading overlay -->
+<div id="ai-overlay">
+    <div class="ai-overlay-card">
+        <div class="ai-spinner"></div>
+        <p class="ai-overlay-title" id="ai-overlay-title">Working…</p>
+        <p class="ai-overlay-sub" id="ai-overlay-sub">This usually takes 10–30 seconds</p>
+        <div><span class="ai-dot"></span><span class="ai-dot"></span><span class="ai-dot"></span></div>
+    </div>
+</div>
+
+<script>
+(function() {
+    var overlay = document.getElementById('ai-overlay');
+    var titleEl = document.getElementById('ai-overlay-title');
+    var subEl   = document.getElementById('ai-overlay-sub');
+
+    var labels = {
+        'job_analysis':  ['Analysing job…',           'Reading the role and matching your profile'],
+        'cover_letter':  ['Writing cover letter…',    'Crafting a personalised letter for this role'],
+        'outreach':      ['Drafting outreach…',       'Writing a recruiter message for this job'],
+        'find-contacts': ['Finding recruiters…',      'Searching Hunter.io for contacts at this company'],
+        'generate':      ['Writing message…',         'Personalising your outreach message'],
+    };
+
+    function getLabel(action, qs) {
+        if (qs && qs.includes('type=')) {
+            var type = qs.split('type=')[1].split('&')[0];
+            return labels[type] || labels['generate'];
+        }
+        for (var key in labels) {
+            if (action.includes(key)) return labels[key];
+        }
+        return ['Working…', 'Calling AI…'];
+    }
+
+    document.querySelectorAll('form[data-ai]').forEach(function(form) {
+        form.addEventListener('submit', function() {
+            var url = form.action || '';
+            var qs  = url.includes('?') ? url.split('?')[1] : '';
+            var lbl = getLabel(url, qs);
+            titleEl.textContent = lbl[0];
+            subEl.textContent   = lbl[1];
+            overlay.classList.add('visible');
+        });
+    });
+})();
+</script>
 </body>
 </html>

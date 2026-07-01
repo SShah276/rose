@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ROSE — Analytics</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+               margin: 0; background: #f5f5f5; color: #111; }
+        .shell { max-width: 900px; margin: 0 auto; padding: 20px; }
+
+        .nav { display: flex; align-items: center; gap: 4px; padding-bottom: 12px;
+               border-bottom: 1px solid #e5e7eb; margin-bottom: 20px; }
+        .nav-brand { font-weight: 800; font-size: 15px; color: #111; text-decoration: none;
+                     margin-right: 12px; letter-spacing: -0.3px; }
+        .nav a { text-decoration: none; color: #555; font-size: 13px; font-weight: 600;
+                 padding: 4px 9px; border-radius: 6px; }
+        .nav a:hover { background: #f3f4f6; color: #111; }
+        .nav a.active { background: #111; color: white; }
+        .nav-spacer { flex: 1; }
+
+        h1 { font-size: 20px; font-weight: 800; margin: 0 0 18px; }
+
+        /* stat grid */
+        .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+                     gap: 10px; margin-bottom: 18px; }
+        .stat-box { background: white; border: 1px solid #e5e7eb; border-radius: 10px;
+                    padding: 14px 16px; }
+        .stat-num   { font-size: 26px; font-weight: 800; color: #111; }
+        .stat-label { font-size: 11px; color: #888; margin-top: 2px; }
+        .stat-box.green { border-color: #22c55e; background: #f0fdf4; }
+        .stat-box.green .stat-num { color: #16a34a; }
+        .stat-box.amber { border-color: #f59e0b; background: #fffbeb; }
+        .stat-box.amber .stat-num { color: #b45309; }
+
+        /* section card */
+        .card { background: white; border: 1px solid #e5e7eb; border-radius: 10px;
+                padding: 16px 20px; margin-bottom: 14px; }
+        .card-title { font-size: 11px; font-weight: 700; color: #aaa; text-transform: uppercase;
+                      letter-spacing: 0.06em; margin: 0 0 14px; }
+
+        /* by-action table */
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { text-align: left; font-size: 11px; font-weight: 700; color: #888;
+             padding: 0 10px 8px 0; border-bottom: 1px solid #f0f0f0; }
+        td { padding: 8px 10px 8px 0; border-bottom: 1px solid #f9f9f9; vertical-align: middle; }
+        tr:last-child td { border-bottom: none; }
+        .action-badge { display: inline-block; font-size: 10px; font-weight: 700;
+                        padding: 2px 7px; border-radius: 4px; }
+        .action-apply   { background: #dcfce7; color: #15803d; }
+        .action-review  { background: #ede9fe; color: #6d28d9; }
+        .action-follow  { background: #fef9c3; color: #854d0e; }
+        .action-message { background: #f0fdf4; color: #15803d; }
+
+        /* bar */
+        .bar-wrap { display: flex; align-items: center; gap: 8px; }
+        .bar-bg { flex: 1; height: 6px; background: #f3f4f6; border-radius: 3px; overflow: hidden; }
+        .bar-fill { height: 100%; border-radius: 3px; }
+        .bar-green  { background: #22c55e; }
+        .bar-red    { background: #ef4444; }
+        .bar-purple { background: #a78bfa; }
+        .bar-count  { font-size: 11px; color: #888; min-width: 24px; text-align: right; }
+
+        /* feedback chips */
+        .chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .chip { display: flex; align-items: center; gap: 5px; padding: 4px 10px;
+                border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .chip-useful    { background: #f0fdf4; color: #15803d; }
+        .chip-not_useful { background: #fef2f2; color: #dc2626; }
+        .chip-too_low_priority { background: #fffbeb; color: #b45309; }
+        .chip-already_handled  { background: #f0fdf4; color: #15803d; }
+        .chip-bad_reason { background: #fef2f2; color: #dc2626; }
+        .chip-count { font-weight: 800; }
+
+        /* plan history table */
+        .history-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .history-table th { text-align: left; font-size: 11px; font-weight: 700; color: #888;
+                             padding: 0 12px 8px 0; border-bottom: 1px solid #f0f0f0; }
+        .history-table td { padding: 9px 12px 9px 0; border-bottom: 1px solid #f9f9f9; vertical-align: middle; }
+        .history-table tr:last-child td { border-bottom: none; }
+        .trace-link { font-size: 11px; color: #6366f1; text-decoration: none; font-weight: 600; }
+        .trace-link:hover { text-decoration: underline; }
+        .err-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+                   background: #ef4444; margin-right: 4px; vertical-align: middle; }
+        .ok-dot  { display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+                   background: #22c55e; margin-right: 4px; vertical-align: middle; }
+        .muted { color: #aaa; font-size: 11px; }
+
+        .empty { color: #ccc; font-size: 13px; text-align: center; padding: 24px 0; }
+    </style>
+</head>
+<body>
+<div class="shell">
+
+    <nav class="nav">
+        <a href="/jobs" class="nav-brand">ROSE</a>
+        <a href="/jobs">Jobs</a>
+        <a href="/tracker">Tracker</a>
+        <a href="/outreach">Outreach</a>
+        <a href="/profile">Profile</a>
+        <a href="/analytics" class="active">Analytics</a>
+        <div class="nav-spacer"></div>
+        <a href="/logout" style="color:#9ca3af; font-size:12px;">Logout</a>
+        <a href="/settings">Settings</a>
+    </nav>
+
+    <h1>Agent Analytics</h1>
+
+    <!-- Summary stats -->
+    <div class="stat-grid">
+        <div class="stat-box">
+            <div class="stat-num">{{ data.total_plans }}</div>
+            <div class="stat-label">Plans generated</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-num">{{ data.total_items }}</div>
+            <div class="stat-label">Total recommendations</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-num">{{ data.items_this_week }}</div>
+            <div class="stat-label">Items this week</div>
+        </div>
+        <div class="stat-box {% if data.useful_rate >= 60 %}green{% elif data.useful_rate > 0 %}amber{% endif %}">
+            <div class="stat-num">{{ data.useful_rate }}%</div>
+            <div class="stat-label">Useful rate (of rated)</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-num">{{ data.feedback_rate }}%</div>
+            <div class="stat-label">Items rated</div>
+        </div>
+    </div>
+
+    <!-- By action type -->
+    <div class="card">
+        <p class="card-title">Recommendations by Action Type</p>
+        {% if data.by_action %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Action</th>
+                    <th>Total</th>
+                    <th style="width:200px">👍 Useful</th>
+                    <th style="width:200px">👎 Negative</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for row in data.by_action %}
+            <tr>
+                <td>
+                    {% if row.action == "Apply" %}<span class="action-badge action-apply">Apply</span>
+                    {% elif row.action == "Review" %}<span class="action-badge action-review">Review</span>
+                    {% elif row.action == "Follow Up" %}<span class="action-badge action-follow">Follow Up</span>
+                    {% elif row.action == "Message" %}<span class="action-badge action-message">Message</span>
+                    {% else %}<span class="action-badge" style="background:#f3f4f6; color:#555;">{{ row.action }}</span>
+                    {% endif %}
+                </td>
+                <td><strong>{{ row.total }}</strong></td>
+                <td>
+                    {% if row.total > 0 %}
+                    <div class="bar-wrap">
+                        <div class="bar-bg"><div class="bar-fill bar-green" style="width:{{ (row.useful / row.total * 100) | int }}%"></div></div>
+                        <span class="bar-count">{{ row.useful }}</span>
+                    </div>
+                    {% else %}<span class="muted">—</span>{% endif %}
+                </td>
+                <td>
+                    {% if row.total > 0 %}
+                    <div class="bar-wrap">
+                        <div class="bar-bg"><div class="bar-fill bar-red" style="width:{{ (row.negative / row.total * 100) | int }}%"></div></div>
+                        <span class="bar-count">{{ row.negative }}</span>
+                    </div>
+                    {% else %}<span class="muted">—</span>{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty">No recommendations yet — generate a plan to start tracking.</p>
+        {% endif %}
+    </div>
+
+    <!-- Feedback breakdown -->
+    <div class="card">
+        <p class="card-title">Feedback Breakdown</p>
+        {% if data.feedback_counts %}
+        <div class="chip-row">
+            {% for key, count in data.feedback_counts.items() %}
+            <span class="chip chip-{{ key }}">
+                {% if key == "useful" %}👍{% elif key == "not_useful" %}👎
+                {% elif key == "too_low_priority" %}↓{% elif key == "already_handled" %}✓
+                {% elif key == "bad_reason" %}✕{% endif %}
+                {{ key | replace("_", " ") | title }}
+                <span class="chip-count">{{ count }}</span>
+            </span>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="empty">No feedback yet — click 👍 or 👎 on plan items to rate recommendations.</p>
+        {% endif %}
+    </div>
+
+    <!-- Plan history -->
+    <div class="card">
+        <p class="card-title">Plan History (last {{ history | length }})</p>
+        {% if history %}
+        <table class="history-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Items</th>
+                    <th>👍 Useful</th>
+                    <th>👎 Negative</th>
+                    <th>Latency</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for p in history %}
+            <tr>
+                <td>{{ p.date }}</td>
+                <td>{{ p.item_count }}</td>
+                <td>{{ p.useful_count }}</td>
+                <td>{{ p.negative_count }}</td>
+                <td class="muted">{% if p.latency_ms %}{{ (p.latency_ms / 1000) | round(1) }}s{% else %}—{% endif %}</td>
+                <td>
+                    {% if p.error %}<span class="err-dot"></span><span class="muted" title="{{ p.error }}">Error</span>
+                    {% else %}<span class="ok-dot"></span><span class="muted">OK</span>{% endif %}
+                </td>
+                <td><a href="/admin/traces/{{ p.id }}" class="trace-link">Trace →</a></td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty">No plans yet.</p>
+        {% endif %}
+    </div>
+
+</div>
+</body>
+</html>

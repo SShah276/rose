@@ -43,11 +43,13 @@
         /* ── Info sections (plan, follow-ups) ── */
         .section { background: white; border: 1px solid #e5e7eb; border-radius: 10px;
                    padding: 14px 18px; margin-bottom: 14px; }
+        .section.plan-ai { border-color: #a5b4fc; }
         .section-title { font-size: 11px; font-weight: 700; color: #aaa; text-transform: uppercase;
                          letter-spacing: 0.06em; margin: 0 0 10px; }
-        .plan-item { display: flex; align-items: baseline; gap: 8px; padding: 5px 0;
+        .plan-item { display: flex; flex-direction: column; gap: 2px; padding: 7px 0;
                      border-bottom: 1px solid #f3f4f6; font-size: 13px; }
         .plan-item:last-child { border-bottom: none; }
+        .plan-main { display: flex; align-items: baseline; gap: 8px; }
         .plan-num { color: #ccc; min-width: 16px; font-weight: 700; }
         .plan-badge { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;
                       white-space: nowrap; }
@@ -56,14 +58,15 @@
         .plan-badge.review { background: #ede9fe; color: #6d28d9; }
         .plan-label { flex: 1; }
         .plan-reason { font-size: 11px; color: #bbb; }
+        .plan-feedback { display: flex; gap: 4px; flex-wrap: wrap; padding-left: 24px; margin-top: 3px; }
+        .fb-btn { background: none; border: 1px solid #e5e7eb; border-radius: 4px;
+                  padding: 1px 7px; font-size: 10px; color: #9ca3af; cursor: pointer;
+                  font-family: inherit; transition: all 0.1s; }
+        .fb-btn:hover { background: #f3f4f6; color: #374151; border-color: #d1d5db; }
+        .fb-btn.active-useful    { background: #f0fdf4; border-color: #86efac; color: #15803d; font-weight: 700; }
+        .fb-btn.active-negative  { background: #fef2f2; border-color: #fca5a5; color: #dc2626; font-weight: 700; }
 
-        .followup-item { display: flex; gap: 12px; align-items: baseline; padding: 5px 0;
-                         border-bottom: 1px solid #f3f4f6; font-size: 13px; }
-        .followup-item:last-child { border-bottom: none; }
-        .followup-label { flex: 1; font-weight: 500; }
-        .followup-meta { font-size: 12px; color: #888; }
-
-        /* ── Job cards ── */
+/* ── Job cards ── */
         .list-title { font-size: 16px; font-weight: 700; margin: 0 0 12px; color: #111; }
         .list-title span { font-size: 13px; font-weight: 400; color: #aaa; }
 
@@ -148,6 +151,39 @@
         .empty-state { background: white; border: 1px solid #e5e7eb; border-radius: 10px;
                        padding: 40px; text-align: center; }
         .empty-state p { color: #888; margin: 0 0 6px; }
+
+        /* ── Filter bar ── */
+        .filter-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+                      padding: 10px 0; border-bottom: 1px solid #e5e7eb; margin-bottom: 16px; }
+        .filter-input { padding: 5px 10px; border: 1px solid #e5e7eb; border-radius: 6px;
+                        font-size: 13px; font-family: inherit; color: #111; }
+        .filter-input:focus { outline: none; border-color: #7c3aed; }
+        .filter-select { padding: 5px 8px; border: 1px solid #e5e7eb; border-radius: 6px;
+                         font-size: 12px; color: #555; background: white;
+                         font-family: inherit; cursor: pointer; }
+        .filter-count { font-size: 12px; color: #9ca3af; white-space: nowrap; }
+        .btn-filter { border: 1px solid #e5e7eb; background: white; border-radius: 6px;
+                      padding: 5px 11px; font-size: 12px; font-weight: 600;
+                      cursor: pointer; color: #555; white-space: nowrap; }
+        .btn-filter:hover { background: #f3f4f6; }
+        .btn-filter.on { background: #111; color: white; border-color: #111; }
+
+        /* ── Bulk checkboxes ── */
+        .bulk-check { display: none; align-items: center; margin-right: 8px; flex-shrink: 0; }
+        .bulk-check input { width: 15px; height: 15px; cursor: pointer; accent-color: #7c3aed; }
+
+        /* ── Bulk action bar ── */
+        #bulk-bar { display: none; position: fixed; bottom: 0; left: 0; right: 0;
+                    background: #111; color: white; padding: 12px 24px; z-index: 200;
+                    align-items: center; gap: 10px; box-shadow: 0 -4px 20px rgba(0,0,0,0.25); }
+        .bulk-act { border: none; border-radius: 6px; padding: 6px 14px; font-size: 12px;
+                    font-weight: 700; cursor: pointer; }
+
+        /* ── Hidden jobs section ── */
+        .hidden-job-row { display: flex; align-items: center; gap: 8px; padding: 7px 14px;
+                          border-bottom: 1px solid #f3f4f6; font-size: 13px; }
+        .hidden-job-row:last-child { border-bottom: none; }
+        .hidden-job-title { flex: 1; color: #6b7280; }
     </style>
 </head>
 <body>
@@ -159,9 +195,10 @@
         <a href="/jobs" class="active">Jobs</a>
         <a href="/tracker">Tracker</a>
         <a href="/outreach">Outreach</a>
-        <a href="/contacts">Contacts</a>
         <a href="/profile">Profile</a>
+        <a href="/analytics">Analytics</a>
         <div class="nav-spacer"></div>
+        <a href="/logout" style="color:#9ca3af; font-size:12px;">Logout</a>
         <a href="/settings">Settings</a>
     </nav>
 
@@ -184,6 +221,36 @@
             <button type="submit" class="btn-import">New Grad Jobs</button>
         </form>
         <a href="/import/csv" style="font-size:12px; color:#aaa; text-decoration:none; margin-left:6px;">+ CSV</a>
+    </div>
+
+    <!-- Filter / control bar -->
+    <div class="filter-bar">
+        <input type="text" id="job-search" class="filter-input"
+               placeholder="Search company, role, location…" style="width:190px;">
+        <select id="status-filter" class="filter-select">
+            <option value="">All statuses</option>
+            <option value="not_applied">Not Applied</option>
+            <option value="not_reviewed">Not Reviewed</option>
+            <option value="interested">Interested</option>
+            <option value="saved">Saved</option>
+            <option value="applied">Applied</option>
+            <option value="interview">Interview</option>
+            <option value="offer">Offer</option>
+        </select>
+        <select id="role-filter" class="filter-select">
+            <option value="">All types</option>
+        </select>
+        <span id="filter-count" class="filter-count">{{ jobs | length }} jobs</span>
+        <div style="flex:1;"></div>
+        <button id="bulk-btn" onclick="toggleBulk()" class="btn-filter">⬜ Select</button>
+        <form method="POST" action="/jobs/archive-old" style="display:inline;"
+              onsubmit="return confirm('Archive all un-reviewed jobs found 14+ days ago? Marks them Closed.')">
+            <button type="submit" class="btn-filter">Archive Old</button>
+        </form>
+        <button id="hidden-btn" onclick="toggleHidden()" class="btn-filter"
+                data-count="{{ hidden_jobs | length }}">
+            Show Closed/Skipped ({{ hidden_jobs | length }})
+        </button>
     </div>
 
     <!-- Stats -->
@@ -218,43 +285,87 @@
         {% endif %}
     </div>
 
-    <!-- Today's Plan -->
-    {% if plan %}
-    <div class="section">
-        <p class="section-title">Today's Plan</p>
+    <!-- Daily Plan -->
+    <div class="section {% if plan_meta.source == 'agent' %}plan-ai{% endif %}">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <button id="plan-toggle" onclick="togglePlan()" title="Collapse / expand"
+                        style="background:none; border:none; cursor:pointer; font-size:16px; color:#aaa;
+                               padding:0 2px; line-height:1; font-weight:700;">▾</button>
+                <div>
+                    <p class="section-title" style="margin:0;">
+                        Today's Recruiting Plan
+                        {% if plan_meta.source == 'agent' %}
+                        <span style="font-size:10px; background:#ede9fe; color:#6d28d9; border-radius:4px; padding:1px 6px; margin-left:6px; font-weight:700;">AI</span>
+                        {% endif %}
+                    </p>
+                    {% if plan_meta.source == 'agent' and plan_meta.generated_at %}
+                    <p style="font-size:11px; color:#bbb; margin:3px 0 0;">
+                        Generated {{ plan_meta.generated_at }} · {{ plan_meta.discovery_count }} opportunities evaluated
+                        {% if plan_meta.error %}<span style="color:#f87171;"> · {{ plan_meta.error }}</span>{% endif %}
+                    </p>
+                    {% elif plan_meta.source == 'rules' and plan %}
+                    <p style="font-size:11px; color:#bbb; margin:3px 0 0;">Rule-based · <a href="/plan/progress" style="color:#7c3aed; text-decoration:none;">upgrade with AI →</a></p>
+                    {% endif %}
+                </div>
+            </div>
+            <a href="/plan/progress" style="background:#7c3aed; color:white; border-radius:7px; padding:7px 14px; font-size:12px; font-weight:700; text-decoration:none; white-space:nowrap;">
+                ✦ Generate Today's Plan
+            </a>
+        </div>
+
+        <div id="plan-body">
+        {% if plan %}
         {% for item in plan %}
         <div class="plan-item">
-            <span class="plan-num">{{ loop.index }}.</span>
-            {% if item.action == "Apply" %}
-                <span class="plan-badge apply">Apply</span>
-                <span class="plan-label"><a href="/jobs/{{ item.job_id }}/apply" style="color:#111; text-decoration:none;">{{ item.label }}</a></span>
-            {% elif item.action == "Follow Up" %}
-                <span class="plan-badge follow">Follow Up</span>
-                <span class="plan-label">{{ item.label }}</span>
-            {% else %}
-                <span class="plan-badge review">Review</span>
-                <span class="plan-label">{{ item.label }}</span>
+            <div class="plan-main">
+                <span class="plan-num">{{ loop.index }}.</span>
+                {% if item.action == "Apply" %}
+                    <span class="plan-badge apply">Apply</span>
+                    <span class="plan-label"><a href="/jobs/{{ item.job_id }}/apply" style="color:#111; text-decoration:none;">{{ item.label }}</a></span>
+                {% elif item.action == "Follow Up" %}
+                    <span class="plan-badge follow">Follow Up</span>
+                    <span class="plan-label">{% if item.job_id %}<a href="/jobs/{{ item.job_id }}/ai" style="color:#111; text-decoration:none;">{{ item.label }}</a>{% else %}{{ item.label }}{% endif %}</span>
+                {% elif item.action == "Message" %}
+                    <span class="plan-badge" style="background:#f0fdf4; color:#15803d;">Message</span>
+                    <span class="plan-label">{% if item.job_id %}<a href="/jobs/{{ item.job_id }}/ai" style="color:#111; text-decoration:none;">{{ item.label }}</a>{% else %}{{ item.label }}{% endif %}</span>
+                {% else %}
+                    <span class="plan-badge review">Review</span>
+                    <span class="plan-label">{% if item.job_id %}<a href="/jobs/{{ item.job_id }}/ai" style="color:#111; text-decoration:none;">{{ item.label }}</a>{% else %}{{ item.label }}{% endif %}</span>
+                {% endif %}
+                <span class="plan-reason">{{ item.reason }}</span>
+            </div>
+            {% if item.id %}
+            <div class="plan-feedback">
+                <form method="POST" action="/plan-items/{{ item.id }}/feedback" style="display:inline">
+                    <input type="hidden" name="feedback" value="useful">
+                    <button type="submit" class="fb-btn {% if item.feedback == 'useful' %}active-useful{% endif %}">👍 Useful</button>
+                </form>
+                <form method="POST" action="/plan-items/{{ item.id }}/feedback" style="display:inline">
+                    <input type="hidden" name="feedback" value="not_useful">
+                    <button type="submit" class="fb-btn {% if item.feedback == 'not_useful' %}active-negative{% endif %}">👎 Not Useful</button>
+                </form>
+                <form method="POST" action="/plan-items/{{ item.id }}/feedback" style="display:inline">
+                    <input type="hidden" name="feedback" value="already_handled">
+                    <button type="submit" class="fb-btn {% if item.feedback == 'already_handled' %}active-useful{% endif %}">✓ Done</button>
+                </form>
+                <form method="POST" action="/plan-items/{{ item.id }}/feedback" style="display:inline">
+                    <input type="hidden" name="feedback" value="too_low_priority">
+                    <button type="submit" class="fb-btn {% if item.feedback == 'too_low_priority' %}active-negative{% endif %}">↓ Low Priority</button>
+                </form>
+                <form method="POST" action="/plan-items/{{ item.id }}/feedback" style="display:inline">
+                    <input type="hidden" name="feedback" value="bad_reason">
+                    <button type="submit" class="fb-btn {% if item.feedback == 'bad_reason' %}active-negative{% endif %}">✕ Bad Reason</button>
+                </form>
+            </div>
             {% endif %}
-            <span class="plan-reason">{{ item.reason }}</span>
         </div>
         {% endfor %}
+        {% else %}
+        <p style="color:#bbb; font-size:13px; margin:10px 0 0;">No plan yet — click <strong>Generate Today's Plan</strong> to run AI agents.</p>
+        {% endif %}
+        </div><!-- /plan-body -->
     </div>
-    {% endif %}
-
-    <!-- Follow-ups Due -->
-    {% if followups %}
-    <div class="section">
-        <p class="section-title">Follow-ups Due ({{ followups | length }})</p>
-        {% for f in followups %}
-        <div class="followup-item">
-            <span class="followup-label">{{ f.company }} — {{ f.title }}</span>
-            <span class="followup-meta">Applied {{ f.date_applied }}</span>
-            <span class="followup-meta" style="color:#dc2626; font-weight:600;">Due {{ f.follow_up_date }}</span>
-            {% if f.url %}<a class="followup-meta" href="{{ f.url }}" target="_blank">→ Link</a>{% endif %}
-        </div>
-        {% endfor %}
-    </div>
-    {% endif %}
 
     <!-- Job list -->
     <p class="list-title">Ranked Jobs <span>({{ jobs | length }})</span></p>
@@ -268,10 +379,16 @@
 
     {% for job in jobs %}
     {% set status = job.status or "not_applied" %}
-    <div class="job-card">
+    <div class="job-card"
+         data-text="{{ ((job.company or '') + ' ' + (job.title or '') + ' ' + (job.location or '')) | lower }}"
+         data-status="{{ status }}"
+         data-role="{{ (job.role_type or '') | lower }}">
 
         <!-- Header -->
         <div class="card-header">
+            <label class="bulk-check">
+                <input type="checkbox" class="job-checkbox" value="{{ job.id }}">
+            </label>
             <h2 class="card-title">{{ loop.index }}. {{ job.company }} — {{ job.title }}</h2>
             <div class="card-right">
                 <span class="badge badge-{{ status }}">{{ status | replace("_", " ") | title }}</span>
@@ -430,6 +547,161 @@
     </div>
     {% endfor %}
 
+    <!-- Closed / skipped archive view -->
+    <div id="hidden-section" style="display:none; margin-top:4px;">
+        <p class="list-title" style="margin-top:16px;">
+            Closed / Skipped <span>({{ hidden_jobs | length }})</span>
+        </p>
+        {% if hidden_jobs %}
+        <div style="background:white; border:1px solid #e5e7eb; border-radius:10px; overflow:hidden; margin-bottom:12px;">
+            {% for job in hidden_jobs %}
+            {% set hs = job.status or "closed" %}
+            <div class="hidden-job-row">
+                <span class="badge badge-{{ hs }}">{{ hs | replace("_"," ") | title }}</span>
+                <span class="hidden-job-title">
+                    {{ job.company }} — {{ job.title }}
+                    {% if job.location %}<span style="color:#bbb;"> · {{ job.location }}</span>{% endif %}
+                </span>
+                <form method="POST" action="/jobs/{{ job.id }}/action" style="display:inline;">
+                    <input type="hidden" name="action" value="restore">
+                    <button type="submit" class="btn-ghost" style="font-size:11px;">Restore</button>
+                </form>
+                <a href="/jobs/{{ job.id }}/ai" class="ai-link" style="font-size:11px; padding:3px 8px;">AI →</a>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p style="color:#bbb; font-size:13px;">No closed or skipped jobs.</p>
+        {% endif %}
+    </div>
+
+    <!-- Bulk action bar (fixed bottom) -->
+    <div id="bulk-bar">
+        <span id="bulk-count" style="font-weight:700; font-size:13px; min-width:80px;">0 selected</span>
+        <button class="bulk-act" onclick="submitBulk('skip')"
+                style="background:#f59e0b; color:#111;">Skip</button>
+        <button class="bulk-act" onclick="submitBulk('close')"
+                style="background:#6b7280; color:white;">Archive</button>
+        <button class="bulk-act" onclick="submitBulk('restore')"
+                style="background:#16a34a; color:white;">Restore</button>
+        <button class="bulk-act" onclick="clearBulk()"
+                style="background:#374151; color:white;">Cancel</button>
+        <form id="bulk-form" method="POST" action="/jobs/bulk-action" style="display:none;">
+            <input type="hidden" name="action" id="bulk-action-val">
+        </form>
+    </div>
+
 </div>
+
+<script>
+function togglePlan() {
+    var body   = document.getElementById('plan-body');
+    var toggle = document.getElementById('plan-toggle');
+    var collapsed = body.style.display === 'none';
+    body.style.display  = collapsed ? '' : 'none';
+    toggle.textContent  = collapsed ? '▾' : '▸';
+    sessionStorage.setItem('plan-collapsed', collapsed ? 'false' : 'true');
+}
+(function() {
+    if (sessionStorage.getItem('plan-collapsed') === 'true') {
+        var body   = document.getElementById('plan-body');
+        var toggle = document.getElementById('plan-toggle');
+        if (body)   body.style.display  = 'none';
+        if (toggle) toggle.textContent  = '▸';
+    }
+})();
+
+// ── Search + filter ──
+(function() {
+    var search  = document.getElementById('job-search');
+    var statSel = document.getElementById('status-filter');
+    var roleSel = document.getElementById('role-filter');
+    var cards   = Array.from(document.querySelectorAll('.job-card[data-text]'));
+    var countEl = document.getElementById('filter-count');
+
+    var roles = new Set();
+    cards.forEach(function(c) { if (c.dataset.role) roles.add(c.dataset.role); });
+    Array.from(roles).sort().forEach(function(r) {
+        var opt = document.createElement('option');
+        opt.value = r;
+        opt.textContent = r.charAt(0).toUpperCase() + r.slice(1);
+        roleSel.appendChild(opt);
+    });
+
+    function applyFilters() {
+        var q = search.value.toLowerCase();
+        var s = statSel.value;
+        var r = roleSel.value;
+        var vis = 0;
+        cards.forEach(function(card) {
+            var show = (!q || card.dataset.text.includes(q))
+                    && (!s || card.dataset.status === s)
+                    && (!r || card.dataset.role === r);
+            card.style.display = show ? '' : 'none';
+            if (show) vis++;
+        });
+        countEl.textContent = vis + ' of ' + cards.length + ' jobs';
+    }
+
+    search.addEventListener('input', applyFilters);
+    statSel.addEventListener('change', applyFilters);
+    roleSel.addEventListener('change', applyFilters);
+})();
+
+// ── Bulk select ──
+var _bulkMode = false;
+
+function toggleBulk() {
+    _bulkMode = !_bulkMode;
+    document.querySelectorAll('.bulk-check').forEach(function(el) {
+        el.style.display = _bulkMode ? 'flex' : 'none';
+    });
+    document.getElementById('bulk-btn').textContent = _bulkMode ? '✕ Cancel' : '⬜ Select';
+    document.getElementById('bulk-btn').classList.toggle('on', _bulkMode);
+    if (!_bulkMode) clearBulk();
+}
+
+function _updateBulkBar() {
+    var checked = document.querySelectorAll('.job-checkbox:checked');
+    var bar = document.getElementById('bulk-bar');
+    document.getElementById('bulk-count').textContent = checked.length + ' selected';
+    bar.style.display = checked.length > 0 ? 'flex' : 'none';
+}
+
+document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('job-checkbox')) _updateBulkBar();
+});
+
+function clearBulk() {
+    document.querySelectorAll('.job-checkbox').forEach(function(c) { c.checked = false; });
+    document.getElementById('bulk-bar').style.display = 'none';
+}
+
+function submitBulk(action) {
+    var ids = Array.from(document.querySelectorAll('.job-checkbox:checked')).map(function(c) { return c.value; });
+    if (!ids.length) return;
+    var form = document.getElementById('bulk-form');
+    document.getElementById('bulk-action-val').value = action;
+    form.querySelectorAll('.bulk-id').forEach(function(e) { e.remove(); });
+    ids.forEach(function(id) {
+        var inp = document.createElement('input');
+        inp.type = 'hidden'; inp.name = 'job_ids'; inp.value = id; inp.className = 'bulk-id';
+        form.appendChild(inp);
+    });
+    form.style.display = 'block';
+    form.submit();
+}
+
+// ── Show / hide closed+skipped ──
+function toggleHidden() {
+    var sec = document.getElementById('hidden-section');
+    var btn = document.getElementById('hidden-btn');
+    var count = btn.dataset.count;
+    var vis = sec.style.display !== 'none';
+    sec.style.display = vis ? 'none' : 'block';
+    btn.textContent = vis ? ('Show Closed/Skipped (' + count + ')') : 'Hide Closed/Skipped';
+    btn.classList.toggle('on', !vis);
+}
+</script>
 </body>
 </html>
