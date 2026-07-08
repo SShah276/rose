@@ -240,7 +240,9 @@
         <select id="role-filter" class="filter-select">
             <option value="">All types</option>
         </select>
-        <span id="filter-count" class="filter-count">{{ jobs | length }} jobs</span>
+        <span id="filter-count" class="filter-count">
+            {{ jobs | length }}{% if total_visible > jobs | length %}/{{ total_visible }}{% endif %} jobs
+        </span>
         <div style="flex:1;"></div>
         <button id="bulk-btn" onclick="toggleBulk()" class="btn-filter">⬜ Select</button>
         <form method="POST" action="/jobs/archive-old" style="display:inline;"
@@ -368,7 +370,17 @@
     </div>
 
     <!-- Job list -->
-    <p class="list-title">Ranked Jobs <span>({{ jobs | length }})</span></p>
+    <p class="list-title">
+        Ranked Jobs
+        <span>
+            ({{ jobs | length }}{% if total_visible > jobs | length %} of {{ total_visible }}{% endif %})
+        </span>
+        {% if total_visible > jobs | length %}
+        <span style="font-size:11px; font-weight:400; color:#9ca3af; margin-left:6px;">
+            Top {{ render_limit }} shown — search or filter to find others
+        </span>
+        {% endif %}
+    </p>
 
     {% if jobs | length == 0 %}
     <div class="empty-state">

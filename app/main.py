@@ -19,7 +19,8 @@ _SECRET_KEY  = os.environ.get("SECRET_KEY", "")
 _APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
 
 from app.db import (
-    init_db, get_all_jobs,
+    init_db, get_all_jobs, get_visible_jobs, get_hidden_jobs,
+    has_unscored_jobs, bulk_update_scores,
     update_application, get_followups_due, get_tracked_applications, get_stats,
     get_setting, set_setting, upsert_job, set_job_salary,
     reset_all_statuses, restore_skipped,
@@ -162,15 +163,23 @@ def _build_daily_plan(ranked_jobs: list) -> list:
 
 @app.get("/jobs")
 def jobs_page(request: Request):
-    jobs = get_all_jobs()
-    ranked_jobs = rank_jobs(jobs)
-    visible = [j for j in ranked_jobs if (j.get("status") or "not_applied") not in ("skipped", "closed")]
-    hidden  = [j for j in ranked_jobs if (j.get("status") or "not_applied") in ("skipped", "closed")]
+    _RENDER_LIMIT = 150
+
+    # Recompute and persist scores if any job is missing one (first run or new import)
+    if has_unscored_jobs():
+        ranked_all = rank_jobs(get_all_jobs())
+        bulk_update_scores([(j["id"], j["final_score"]) for j in ranked_all])
+
+    # Fast DB fetch — pre-sorted, pre-filtered, capped at render limit
+    visible, total_visible = get_visible_jobs(limit=_RENDER_LIMIT)
+
+    # Closed/skipped section — usually tiny, no cap needed
+    hidden = get_hidden_jobs()
 
     # Use AI-generated plan from DB if generated today, else fall back to rule-based
     plan_db, plan_items = get_today_plan()
     if plan_db:
-        plan      = plan_items   # list of plan_item dicts with 'id' for feedback buttons
+        plan      = plan_items
         plan_meta = {
             "source":          plan_db["source"],
             "generated_at":    plan_db["date"],
@@ -179,19 +188,21 @@ def jobs_page(request: Request):
             "plan_id":         plan_db["id"],
         }
     else:
-        plan      = _build_daily_plan(ranked_jobs)
+        plan      = _build_daily_plan(visible)
         plan_meta = {"source": "rules"}
 
     return templates.TemplateResponse(
         request=request,
         name="jobs.html",
         context={
-            "jobs":        visible,
-            "hidden_jobs": hidden,
-            "plan":        plan,
-            "plan_meta":   plan_meta,
-            "followups":   get_followups_due(),
-            "stats":       get_stats(),
+            "jobs":          visible,
+            "hidden_jobs":   hidden,
+            "total_visible": total_visible,
+            "render_limit":  _RENDER_LIMIT,
+            "plan":          plan,
+            "plan_meta":     plan_meta,
+            "followups":     get_followups_due(),
+            "stats":         get_stats(),
         }
     )
 
@@ -916,12 +927,21 @@ def settings_page(request: Request):
 @app.post("/settings")
 async def save_settings(request: Request):
     form = await request.form()
+    weights_changed = False
     for key in _WEIGHT_KEYS:
         if key in form:
             try:
                 set_setting(key, str(round(float(form[key]), 4)))
+                weights_changed = True
             except ValueError:
                 pass
     if "cover_letter_template" in form:
         set_setting("cover_letter_template", str(form["cover_letter_template"]).strip())
+    if weights_changed:
+        # Invalidate cached scores so they're recomputed on next page load
+        from app.db import get_connection as _gc
+        conn = _gc()
+        conn.cursor().execute("UPDATE jobs SET final_score = NULL")
+        conn.commit()
+        conn.close()
     return RedirectResponse(url="/settings", status_code=303)

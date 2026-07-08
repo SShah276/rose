@@ -75,6 +75,18 @@ def _migrate_v6(conn):
             pass
 
 
+def _migrate_v8(conn):
+    """Cache final_score in jobs table + add performance indexes."""
+    cursor = conn.cursor()
+    try:
+        cursor.execute("ALTER TABLE jobs ADD COLUMN final_score REAL")
+    except sqlite3.OperationalError:
+        pass
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_jobs_score  ON jobs(final_score DESC)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_app_status  ON applications(status)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_jobs_active ON jobs(is_active)")
+
+
 def init_db():
     conn = get_connection()
     cursor = conn.cursor()
@@ -222,6 +234,7 @@ def init_db():
     _migrate_v3(conn)
     _migrate_v6(conn)
     _migrate_v7(conn)
+    _migrate_v8(conn)
     conn.commit()
     conn.close()
 
@@ -247,6 +260,75 @@ def get_all_jobs():
     rows = cursor.fetchall()
     conn.close()
     return [dict(row) for row in rows]
+
+
+def bulk_update_scores(id_score_pairs: list):
+    """Persist computed final_score values to jobs table."""
+    if not id_score_pairs:
+        return
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.executemany(
+        "UPDATE jobs SET final_score = ? WHERE id = ?",
+        [(score, job_id) for job_id, score in id_score_pairs]
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_visible_jobs(limit: int = 150) -> tuple[list, int]:
+    """Return (visible_jobs, total_visible_count) sorted by score, capped at limit."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    _HIDDEN = "('skipped', 'closed')"
+    cursor.execute(f"""
+    SELECT COUNT(*) FROM jobs j
+    LEFT JOIN applications a ON j.id = a.job_id
+    WHERE j.is_active = 1
+      AND (a.status IS NULL OR a.status NOT IN {_HIDDEN})
+    """)
+    total = cursor.fetchone()[0]
+    cursor.execute(f"""
+    SELECT j.*,
+           a.status, a.date_applied, a.follow_up_date,
+           a.notes, a.resume_used, a.application_url
+    FROM jobs j
+    LEFT JOIN applications a ON j.id = a.job_id
+    WHERE j.is_active = 1
+      AND (a.status IS NULL OR a.status NOT IN {_HIDDEN})
+    ORDER BY j.final_score DESC NULLS LAST, j.id DESC
+    LIMIT ?
+    """, (limit,))
+    rows = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return rows, total
+
+
+def get_hidden_jobs() -> list:
+    """Return only closed/skipped jobs for the archive section."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+    SELECT j.*, a.status, a.date_applied, a.follow_up_date,
+           a.notes, a.resume_used, a.application_url
+    FROM jobs j
+    INNER JOIN applications a ON j.id = a.job_id
+    WHERE j.is_active = 1 AND a.status IN ('skipped', 'closed')
+    ORDER BY j.company
+    """)
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def has_unscored_jobs() -> bool:
+    """Fast check: are any active jobs missing a cached final_score?"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT 1 FROM jobs WHERE is_active=1 AND final_score IS NULL LIMIT 1")
+    result = cursor.fetchone()
+    conn.close()
+    return result is not None
 
 
 def get_job_by_dedupe_key(dedupe_key):
