@@ -5,6 +5,7 @@ from datetime import date, timedelta
 
 _db_url = os.environ.get("DATABASE_URL", "")
 DB_PATH = Path(_db_url) if _db_url else Path(__file__).resolve().parent.parent / "jobs.db"
+DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 
 def get_connection():

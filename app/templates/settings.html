@@ -64,6 +64,24 @@
                 </button>
             </form>
         </div>
+
+        <div style="margin-top:16px; padding-top:14px; border-top:1px solid #fca5a5;">
+            <p style="font-size:13px; font-weight:700; color:#b91c1c; margin:0 0 4px;">Migrate from local → deployed</p>
+            <p style="font-size:12px; color:#555; margin:0 0 10px;">
+                Upload your local <code style="background:#fff0f0; padding:1px 5px; border-radius:3px;">jobs.db</code>
+                to restore all jobs, statuses, contacts, and settings on the deployed server.
+                <strong>This overwrites the current database.</strong>
+            </p>
+            <form method="POST" action="/admin/restore-db" enctype="multipart/form-data"
+                  onsubmit="return confirm('This will replace the current database with the uploaded file. Continue?')"
+                  style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                <input type="file" name="db_file" accept=".db"
+                       style="font-size:12px; color:#555;" required>
+                <button type="submit" style="background:#7c3aed;color:white;border:none;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:bold;cursor:pointer;">
+                    Restore Database
+                </button>
+            </form>
+        </div>
     </div>
 
     <div class="card">

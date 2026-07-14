@@ -907,6 +907,20 @@ def admin_restore_skipped():
     return RedirectResponse(url="/settings", status_code=303)
 
 
+@app.post("/admin/restore-db")
+async def restore_db(db_file: UploadFile = File(...)):
+    import os
+    from app.db import DB_PATH
+    content = await db_file.read()
+    if not content.startswith(b"SQLite format 3"):
+        from fastapi.responses import HTMLResponse
+        return HTMLResponse("Not a valid SQLite database file.", status_code=400)
+    tmp = DB_PATH.parent / "_upload_tmp.db"
+    tmp.write_bytes(content)
+    os.replace(str(tmp), str(DB_PATH))
+    return RedirectResponse(url="/jobs", status_code=303)
+
+
 _WEIGHT_KEYS = [
     "role_weight", "location_weight", "compensation_weight", "freshness_weight",
 ]
