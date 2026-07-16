@@ -596,6 +596,59 @@ def fetch_newgrad_jobs(request: Request):
     )
 
 
+@app.post("/fetch/all")
+def fetch_all(request: Request):
+    """Run all five job sources in sequence and return a combined summary."""
+    total = {"fetched": 0, "inserted": 0, "updated": 0, "skipped": 0, "errors": []}
+    sources_run = []
+
+    def _absorb(raw_jobs, source_label):
+        total["fetched"] += len(raw_jobs)
+        sources_run.append(source_label)
+        for raw in raw_jobs:
+            try:
+                job_data = normalize_job({
+                    "company":     raw.company,
+                    "title":       raw.title,
+                    "location":    raw.location,
+                    "salary":      str(raw.salary or ""),
+                    "pay_raw":     getattr(raw, "pay_raw", ""),
+                    "url":         raw.url,
+                    "description": getattr(raw, "description", ""),
+                    "date_posted": getattr(raw, "date_posted", ""),
+                }, source=raw.source, job_type=getattr(raw, "job_type", ""))
+                result = upsert_job(job_data)
+                total["inserted" if result == "inserted" else "updated"] += 1
+            except Exception as e:
+                total["skipped"] += 1
+                total["errors"].append(str(e))
+
+    for repo in ["simplify", "new-grad", "speedyapply"]:
+        try:
+            _absorb(GitHubSource(repo_key=repo).fetch_jobs(), repo)
+        except Exception as e:
+            total["errors"].append(f"github/{repo}: {e}")
+
+    for Src, label in [(InternListSource, "intern-list"), (NewGradJobsSource, "newgrad-jobs")]:
+        try:
+            _absorb(Src().fetch_jobs(), label)
+        except Exception as e:
+            total["errors"].append(f"{label}: {e}")
+
+    # Invalidate cached scores so next page load recomputes
+    from app.db import get_connection as _gc
+    conn = _gc()
+    conn.execute("UPDATE jobs SET final_score = NULL WHERE final_score IS NOT NULL")
+    conn.commit()
+    conn.close()
+
+    total["rows_read"] = total["fetched"]
+    return templates.TemplateResponse(
+        request=request, name="import_result.html",
+        context={"summary": total, "filename": f"All Sources ({', '.join(sources_run)})"}
+    )
+
+
 # ---------- settings ----------
 
 # ---------- candidate profile ----------

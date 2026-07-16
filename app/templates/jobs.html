@@ -186,6 +186,7 @@
         .hidden-job-row:last-child { border-bottom: none; }
         .hidden-job-title { flex: 1; color: #6b7280; }
     </style>
+<script src="/static/theme.js"></script>
 </head>
 <body>
 <div class="shell">
@@ -205,21 +206,12 @@
 
     <!-- Import bar -->
     <div class="import-bar">
-        <span class="import-label">Fetch</span>
-        <form method="POST" action="/fetch/github?repo=simplify" style="display:inline">
-            <button type="submit" class="btn-import">Internships</button>
-        </form>
-        <form method="POST" action="/fetch/github?repo=new-grad" style="display:inline">
-            <button type="submit" class="btn-import">New Grad</button>
-        </form>
-        <form method="POST" action="/fetch/github?repo=speedyapply" style="display:inline">
-            <button type="submit" class="btn-import">SpeedyApply</button>
-        </form>
-        <form method="POST" action="/fetch/intern-list" style="display:inline">
-            <button type="submit" class="btn-import">Intern List</button>
-        </form>
-        <form method="POST" action="/fetch/newgrad-jobs" style="display:inline">
-            <button type="submit" class="btn-import">New Grad Jobs</button>
+        <span class="import-label">Import</span>
+        <form method="POST" action="/fetch/all" style="display:inline"
+              onsubmit="this.querySelector('button').textContent='Fetching…'; this.querySelector('button').disabled=true;">
+            <button type="submit" class="btn-import" style="background:#111; color:white; border-color:#111; font-weight:700;">
+                Fetch All Sources
+            </button>
         </form>
         <a href="/import/csv" style="font-size:12px; color:#aaa; text-decoration:none; margin-left:6px;">+ CSV</a>
     </div>
@@ -421,21 +413,6 @@
         {% if status == "applied" and job.date_applied %}
         <div class="card-meta muted" style="margin-top:2px;">Applied {{ job.date_applied }}</div>
         {% endif %}
-
-        <!-- Salary set -->
-        <form method="POST" action="/jobs/{{ job.id }}/set-salary" class="salary-form">
-            <input type="text" name="salary" class="salary-input"
-                   placeholder="{{ job.pay_raw or 'Set salary: 95000 or $45/hr' }}">
-            <button type="submit" class="btn-set">Set</button>
-        </form>
-
-        <!-- Score breakdown -->
-        <div class="breakdown">
-            <span class="chip">Role {{ job.role_score }}</span>
-            <span class="chip">Location {{ job.location_score }}</span>
-            <span class="chip">Comp {{ job.compensation_score }}</span>
-            <span class="chip">Freshness {{ job.freshness_score }}</span>
-        </div>
 
         <hr class="divider">
 
