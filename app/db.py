@@ -278,10 +278,11 @@ def bulk_update_scores(id_score_pairs: list):
 
 
 def get_visible_jobs(limit: int = 150) -> tuple[list, int]:
-    """Return (visible_jobs, total_visible_count) sorted by score, capped at limit."""
+    """Return (visible_jobs, total_visible_count) sorted by score, capped at limit.
+    Excludes closed/skipped and the applied pipeline (applied/interview/offer/rejected)."""
     conn = get_connection()
     cursor = conn.cursor()
-    _HIDDEN = "('skipped', 'closed')"
+    _HIDDEN = "('skipped', 'closed', 'applied', 'interview', 'offer', 'rejected')"
     cursor.execute(f"""
     SELECT COUNT(*) FROM jobs j
     LEFT JOIN applications a ON j.id = a.job_id
@@ -316,6 +317,22 @@ def get_hidden_jobs() -> list:
     INNER JOIN applications a ON j.id = a.job_id
     WHERE j.is_active = 1 AND a.status IN ('skipped', 'closed')
     ORDER BY j.company
+    """)
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_applied_jobs() -> list:
+    """Return applied/interview/offer/rejected jobs for the pipeline section."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+    SELECT j.*, a.status, a.date_applied, a.notes, a.resume_used, a.application_url
+    FROM jobs j
+    INNER JOIN applications a ON j.id = a.job_id
+    WHERE j.is_active = 1 AND a.status IN ('applied', 'interview', 'offer', 'rejected')
+    ORDER BY a.date_applied DESC, j.company
     """)
     rows = cursor.fetchall()
     conn.close()

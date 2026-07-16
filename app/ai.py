@@ -87,10 +87,7 @@ Write exactly these sections:
 (What they're missing or could strengthen before applying)
 
 ## Fit Assessment
-(2–3 sentences: strength of match and what angle to take in the application)
-
-## Resume Recommendation
-(Which resume version fits best and one-line reason)"""
+(2–3 sentences: strength of match and what angle to take in the application)"""
 
     resp = client.messages.create(
         model="claude-sonnet-4-6",
@@ -233,16 +230,7 @@ Generate exactly these three blocks separated by "---":
 **Cold Email**
 Subject: [subject line]
 
-[3 short paragraphs: hook specific to the company, value you bring, clear ask]
-
----
-
-**Follow-up Email** (send after 1 week of silence)
-Subject: [subject line]
-
-[2 paragraphs: brief re-intro, renewed ask with a slight new angle]
-
-Do not use phrases like "I came across your posting", "I am very passionate about", or "I hope this message finds you well."."""
+[3 short paragraphs: hook specific to the company, value you bring, clear ask]"""
 
     resp = client.messages.create(
         model="claude-sonnet-4-6",

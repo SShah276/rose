@@ -2,6 +2,7 @@
 <html>
 <head>
     <title>ROSE — Jobs</title>
+    <link rel="stylesheet" href="/static/dark.css">
     <style>
         * { box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
@@ -233,9 +234,6 @@
             <option value="not_reviewed">Not Reviewed</option>
             <option value="interested">Interested</option>
             <option value="saved">Saved</option>
-            <option value="applied">Applied</option>
-            <option value="interview">Interview</option>
-            <option value="offer">Offer</option>
         </select>
         <select id="role-filter" class="filter-select">
             <option value="">All types</option>
@@ -249,9 +247,13 @@
               onsubmit="return confirm('Archive all un-reviewed jobs found 14+ days ago? Marks them Closed.')">
             <button type="submit" class="btn-filter">Archive Old</button>
         </form>
+        <button id="applied-btn" onclick="toggleApplied()" class="btn-filter"
+                data-count="{{ applied_jobs | length }}">
+            Applied Pipeline ({{ applied_jobs | length }})
+        </button>
         <button id="hidden-btn" onclick="toggleHidden()" class="btn-filter"
                 data-count="{{ hidden_jobs | length }}">
-            Show Closed/Skipped ({{ hidden_jobs | length }})
+            Closed/Skipped ({{ hidden_jobs | length }})
         </button>
     </div>
 
@@ -277,12 +279,6 @@
         <div class="stat-box good">
             <div class="stat-num">{{ stats.offers }}</div>
             <div class="stat-label">Offers</div>
-        </div>
-        {% endif %}
-        {% if stats.followups_due > 0 %}
-        <div class="stat-box urgent">
-            <div class="stat-num">{{ stats.followups_due }}</div>
-            <div class="stat-label">Follow-ups Due</div>
         </div>
         {% endif %}
     </div>
@@ -423,9 +419,7 @@
         </div>
 
         {% if status == "applied" and job.date_applied %}
-        <div class="card-meta muted" style="margin-top:2px;">
-            Applied {{ job.date_applied }}{% if job.follow_up_date %} · Follow-up: <strong style="color:#111;">{{ job.follow_up_date }}</strong>{% endif %}
-        </div>
+        <div class="card-meta muted" style="margin-top:2px;">Applied {{ job.date_applied }}</div>
         {% endif %}
 
         <!-- Salary set -->
@@ -448,35 +442,10 @@
         <!-- Actions -->
         <div class="actions">
 
-            {% if status in ["not_applied", "not_reviewed"] %}
+            {% if status in ["not_applied", "not_reviewed", "interested"] %}
                 <form method="POST" action="/jobs/{{ job.id }}/action">
                     <input type="hidden" name="action" value="apply">
-                    <button class="btn-cta btn-cta-green">Apply →</button>
-                </form>
-                <form method="POST" action="/jobs/{{ job.id }}/action">
-                    <input type="hidden" name="action" value="interested">
-                    <button class="btn-soft btn-soft-blue">Interested</button>
-                </form>
-                <form method="POST" action="/jobs/{{ job.id }}/action">
-                    <input type="hidden" name="action" value="save">
-                    <button class="btn-soft btn-soft-purple">Save</button>
-                </form>
-                <div class="actions-right">
-                    <form method="POST" action="/jobs/{{ job.id }}/action">
-                        <input type="hidden" name="action" value="skip">
-                        <button class="btn-ghost">Skip</button>
-                    </form>
-                    <form method="POST" action="/jobs/{{ job.id }}/action">
-                        <input type="hidden" name="action" value="close">
-                        <button class="btn-ghost">Closed</button>
-                    </form>
-                    <a href="/jobs/{{ job.id }}/ai" class="ai-link">AI →</a>
-                </div>
-
-            {% elif status == "interested" %}
-                <form method="POST" action="/jobs/{{ job.id }}/action">
-                    <input type="hidden" name="action" value="apply">
-                    <button class="btn-cta btn-cta-green">Apply →</button>
+                    <button class="btn-cta btn-cta-green">Mark Applied</button>
                 </form>
                 <form method="POST" action="/jobs/{{ job.id }}/action">
                     <input type="hidden" name="action" value="save">
@@ -497,11 +466,7 @@
             {% elif status == "saved" %}
                 <form method="POST" action="/jobs/{{ job.id }}/action">
                     <input type="hidden" name="action" value="apply">
-                    <button class="btn-cta btn-cta-green">Apply →</button>
-                </form>
-                <form method="POST" action="/jobs/{{ job.id }}/action">
-                    <input type="hidden" name="action" value="interested">
-                    <button class="btn-soft btn-soft-blue">Interested</button>
+                    <button class="btn-cta btn-cta-green">Mark Applied</button>
                 </form>
                 <div class="actions-right">
                     <form method="POST" action="/jobs/{{ job.id }}/action">
@@ -558,6 +523,49 @@
         </div>
     </div>
     {% endfor %}
+
+    <!-- Applied pipeline section -->
+    <div id="applied-section" style="display:none; margin-top:4px;">
+        <p class="list-title" style="margin-top:16px;">
+            Applied Pipeline <span>({{ applied_jobs | length }})</span>
+        </p>
+        {% if applied_jobs %}
+        <div style="background:white; border:1px solid #e5e7eb; border-radius:10px; overflow:hidden; margin-bottom:12px;">
+            {% for job in applied_jobs %}
+            {% set ps = job.status or "applied" %}
+            <div class="hidden-job-row">
+                <span class="badge badge-{{ ps }}">{{ ps | replace("_"," ") | title }}</span>
+                <span class="hidden-job-title">
+                    {{ job.company }} — {{ job.title }}
+                    {% if job.date_applied %}<span style="color:#bbb;"> · {{ job.date_applied }}</span>{% endif %}
+                </span>
+                {% if ps == "applied" %}
+                <form method="POST" action="/jobs/{{ job.id }}/action" style="display:inline;">
+                    <input type="hidden" name="action" value="interview">
+                    <button type="submit" class="btn-ghost" style="font-size:11px; color:#ea580c;">Interview</button>
+                </form>
+                <form method="POST" action="/jobs/{{ job.id }}/action" style="display:inline;">
+                    <input type="hidden" name="action" value="rejected">
+                    <button type="submit" class="btn-ghost" style="font-size:11px; color:#f87171;">Rejected</button>
+                </form>
+                {% elif ps == "interview" %}
+                <form method="POST" action="/jobs/{{ job.id }}/action" style="display:inline;">
+                    <input type="hidden" name="action" value="offer">
+                    <button type="submit" class="btn-ghost" style="font-size:11px; color:#d97706;">Got Offer!</button>
+                </form>
+                <form method="POST" action="/jobs/{{ job.id }}/action" style="display:inline;">
+                    <input type="hidden" name="action" value="rejected">
+                    <button type="submit" class="btn-ghost" style="font-size:11px; color:#f87171;">Rejected</button>
+                </form>
+                {% endif %}
+                <a href="/jobs/{{ job.id }}/ai" class="ai-link" style="font-size:11px; padding:3px 8px;">AI →</a>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p style="color:#bbb; font-size:13px;">No applied jobs yet.</p>
+        {% endif %}
+    </div>
 
     <!-- Closed / skipped archive view -->
     <div id="hidden-section" style="display:none; margin-top:4px;">
@@ -704,6 +712,17 @@ function submitBulk(action) {
     form.submit();
 }
 
+// ── Show / hide applied pipeline ──
+function toggleApplied() {
+    var sec = document.getElementById('applied-section');
+    var btn = document.getElementById('applied-btn');
+    var count = btn.dataset.count;
+    var vis = sec.style.display !== 'none';
+    sec.style.display = vis ? 'none' : 'block';
+    btn.textContent = vis ? ('Applied Pipeline (' + count + ')') : 'Hide Applied Pipeline';
+    btn.classList.toggle('on', !vis);
+}
+
 // ── Show / hide closed+skipped ──
 function toggleHidden() {
     var sec = document.getElementById('hidden-section');
@@ -711,7 +730,7 @@ function toggleHidden() {
     var count = btn.dataset.count;
     var vis = sec.style.display !== 'none';
     sec.style.display = vis ? 'none' : 'block';
-    btn.textContent = vis ? ('Show Closed/Skipped (' + count + ')') : 'Hide Closed/Skipped';
+    btn.textContent = vis ? ('Closed/Skipped (' + count + ')') : 'Hide Closed/Skipped';
     btn.classList.toggle('on', !vis);
 }
 </script>

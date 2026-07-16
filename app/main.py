@@ -19,9 +19,9 @@ _SECRET_KEY  = os.environ.get("SECRET_KEY", "")
 _APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
 
 from app.db import (
-    init_db, get_all_jobs, get_visible_jobs, get_hidden_jobs,
+    init_db, get_all_jobs, get_visible_jobs, get_hidden_jobs, get_applied_jobs,
     has_unscored_jobs, bulk_update_scores,
-    update_application, get_followups_due, get_tracked_applications, get_stats,
+    update_application, get_tracked_applications, get_stats,
     get_setting, set_setting, upsert_job, set_job_salary,
     reset_all_statuses, restore_skipped,
     get_profile, save_profile,
@@ -48,12 +48,15 @@ import urllib.request
 app = FastAPI()
 templates = Jinja2Templates(directory="app/templates")
 
+from fastapi.staticfiles import StaticFiles
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
 # ── Auth middleware (runs after SessionMiddleware populates request.session) ──
 class _AuthMiddleware(BaseHTTPMiddleware):
     _PUBLIC = frozenset({"/login"})
 
     async def dispatch(self, request: Request, call_next):
-        if request.url.path in self._PUBLIC:
+        if request.url.path in self._PUBLIC or request.url.path.startswith("/static/"):
             return await call_next(request)
         if not request.session.get("authenticated"):
             return RedirectResponse(url=f"/login?next={request.url.path}", status_code=303)
@@ -201,7 +204,7 @@ def jobs_page(request: Request):
             "render_limit":  _RENDER_LIMIT,
             "plan":          plan,
             "plan_meta":     plan_meta,
-            "followups":     get_followups_due(),
+            "applied_jobs":  get_applied_jobs(),
             "stats":         get_stats(),
         }
     )
@@ -451,7 +454,6 @@ def tracker_page(request: Request):
         context={
             "applications": get_tracked_applications(),
             "stats": get_stats(),
-            "followups": get_followups_due(),
         }
     )
 

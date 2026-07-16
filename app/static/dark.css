@@ -1,0 +1,108 @@
+/* ROSE — Dark mode overrides */
+@media (prefers-color-scheme: dark) {
+    body { background: #0d1117 !important; color: #e6edf3 !important; }
+
+    /* Nav */
+    .nav { border-color: #30363d !important; }
+    .nav-brand { color: #e6edf3 !important; }
+    .nav a { color: #8b949e !important; }
+    .nav a:hover { background: #21262d !important; color: #e6edf3 !important; }
+    .nav a.active { background: #e6edf3 !important; color: #0d1117 !important; }
+
+    /* Cards & panels */
+    .job-card, .section, .card, .stat-box, .job-banner,
+    .empty-state, .empty-section, .ai-overlay-card {
+        background: #161b22 !important;
+        border-color: #30363d !important;
+        color: #e6edf3 !important;
+    }
+
+    /* Tracker table */
+    table { background: #161b22 !important; }
+    th { background: #0d1117 !important; color: #8b949e !important; border-color: #30363d !important; }
+    td { border-color: #21262d !important; color: #e6edf3 !important; }
+    tr:hover td { background: #1c2128 !important; }
+
+    /* Text */
+    .card-meta, .banner-meta, .contact-sub { color: #8b949e !important; }
+    .muted, .stat-label, .section-meta, .filter-count,
+    .plan-reason, .plan-num, .hint, .followup-meta { color: #6e7681 !important; }
+    .section-title { color: #8b949e !important; }
+    .list-title { color: #e6edf3 !important; }
+    .list-title span { color: #6e7681 !important; }
+    .hidden-job-title { color: #6e7681 !important; }
+    .empty-section p, .empty-state p { color: #6e7681 !important; }
+
+    /* Score & stats */
+    .score { color: #4ade80 !important; }
+    .stat-num { color: #e6edf3 !important; }
+    .stat-box.urgent { background: #1c0a0a !important; border-color: #7f1d1d !important; }
+    .stat-box.urgent .stat-num { color: #f87171 !important; }
+    .stat-box.good { background: #0a1c0d !important; border-color: #14532d !important; }
+    .stat-box.good .stat-num { color: #4ade80 !important; }
+
+    /* Chips */
+    .chip { background: #21262d !important; border-color: #30363d !important; color: #8b949e !important; }
+
+    /* Inputs & textareas */
+    input[type="text"], input[type="number"], input[type="password"],
+    input[type="date"], input[type="url"], textarea, select {
+        background: #161b22 !important;
+        border-color: #30363d !important;
+        color: #e6edf3 !important;
+    }
+    input::placeholder, textarea::placeholder { color: #484f58 !important; }
+    .salary-input, .filter-input, .inline-input { background: #161b22 !important; border-color: #30363d !important; color: #e6edf3 !important; }
+    textarea.output-content, textarea.template-area { background: #161b22 !important; border-color: #30363d !important; color: #e6edf3 !important; }
+    .contact-message-block textarea { background: #21262d !important; border-color: #30363d !important; color: #e6edf3 !important; }
+
+    /* Toolbar buttons */
+    .btn-import { background: #21262d !important; border-color: #30363d !important; color: #8b949e !important; }
+    .btn-import:hover { background: #2563eb !important; border-color: #2563eb !important; color: white !important; }
+    .btn-filter { background: #21262d !important; border-color: #30363d !important; color: #8b949e !important; }
+    .btn-filter:hover { background: #30363d !important; }
+    .btn-filter.on { background: #e6edf3 !important; color: #0d1117 !important; border-color: #e6edf3 !important; }
+    .btn-set { background: #21262d !important; border-color: #30363d !important; color: #8b949e !important; }
+    .btn-set:hover { background: #30363d !important; }
+    .btn-ghost { color: #6e7681 !important; }
+    .btn-ghost:hover { background: #21262d !important; color: #8b949e !important; }
+    .btn-regen { background: #21262d !important; color: #8b949e !important; }
+    .fb-btn { border-color: #30363d !important; color: #6e7681 !important; }
+    .fb-btn:hover { background: #21262d !important; color: #8b949e !important; }
+
+    /* AI link */
+    .ai-link { background: #1a0a2d !important; border-color: #4c1d95 !important; color: #c4b5fd !important; }
+    .ai-link:hover { background: #2d1a4d !important; }
+
+    /* Dividers / borders */
+    .divider, hr { border-color: #21262d !important; }
+    .hidden-job-row, .contact-row, .followup-item, .plan-item { border-color: #21262d !important; }
+    .import-bar, .filter-bar { border-color: #30363d !important; }
+    .section-header { border-color: #21262d !important; }
+
+    /* Plan badges */
+    .plan-badge.apply { background: #0a2d1a !important; color: #4ade80 !important; }
+    .plan-badge.follow { background: #2d2200 !important; color: #fbbf24 !important; }
+    .plan-badge.review { background: #1a0a2d !important; color: #c4b5fd !important; }
+    .section.plan-ai { border-color: #4c1d95 !important; }
+
+    /* Alerts */
+    .alert-error { background: #1c0a0a !important; border-color: #7f1d1d !important; color: #f87171 !important; }
+    .alert-warning { background: #1c1400 !important; border-color: #78350f !important; color: #fbbf24 !important; }
+
+    /* Settings & text */
+    label { color: #e6edf3 !important; }
+    h1, h2, h3 { color: #e6edf3 !important; }
+    p { color: #8b949e !important; }
+    code { background: #21262d !important; color: #c4b5fd !important; }
+
+    /* Login */
+    .login-card { background: #161b22 !important; border-color: #30363d !important; }
+    .login-brand { color: #e6edf3 !important; }
+    .login-sub { color: #8b949e !important; }
+
+    /* Outreach count chips */
+    .count-chip { background: #21262d !important; border-color: #30363d !important; color: #8b949e !important; }
+    .count-chip.urgent { background: #1c0a0a !important; border-color: #7f1d1d !important; color: #f87171 !important; }
+    .count-chip.none { background: #21262d !important; color: #6e7681 !important; }
+}

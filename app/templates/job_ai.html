@@ -2,6 +2,7 @@
 <html>
 <head>
     <title>ROSE AI — {{ job.company }}</title>
+    <link rel="stylesheet" href="/static/dark.css">
     <style>
         * { box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
@@ -347,10 +348,7 @@
     </div>
     {% else %}
     <div class="empty-section">
-        <p>No job analysis yet.</p>
-        <form method="POST" action="/jobs/{{ job.id }}/ai/generate?type=job_analysis" data-ai>
-            <button class="btn btn-ai">Generate Analysis</button>
-        </form>
+        <p>No job analysis yet — click <strong>Generate Analysis</strong> above.</p>
     </div>
     {% endif %}
 
@@ -383,10 +381,7 @@
     </div>
     {% else %}
     <div class="empty-section">
-        <p>No cover letter yet.</p>
-        <form method="POST" action="/jobs/{{ job.id }}/ai/generate?type=cover_letter" data-ai>
-            <button class="btn btn-ai">Generate Cover Letter</button>
-        </form>
+        <p>No cover letter yet — click <strong>Generate Cover Letter</strong> above.</p>
     </div>
     {% endif %}
 
@@ -414,10 +409,7 @@
     </div>
     {% else %}
     <div class="empty-section">
-        <p>No outreach message yet.</p>
-        <form method="POST" action="/jobs/{{ job.id }}/ai/generate?type=outreach" data-ai>
-            <button class="btn btn-ai">Generate Outreach</button>
-        </form>
+        <p>No outreach message yet — click <strong>Generate Outreach</strong> above.</p>
     </div>
     {% endif %}
 
