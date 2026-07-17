@@ -635,13 +635,6 @@ def fetch_all(request: Request):
         except Exception as e:
             total["errors"].append(f"{label}: {e}")
 
-    # Invalidate cached scores so next page load recomputes
-    from app.db import get_connection as _gc
-    conn = _gc()
-    conn.execute("UPDATE jobs SET final_score = NULL WHERE final_score IS NOT NULL")
-    conn.commit()
-    conn.close()
-
     total["rows_read"] = total["fetched"]
     return templates.TemplateResponse(
         request=request, name="import_result.html",

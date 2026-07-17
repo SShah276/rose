@@ -572,7 +572,7 @@ def get_stats() -> dict:
     cursor.execute("SELECT COUNT(*) FROM applications WHERE status = 'applied' AND date_applied >= ?", (week_ago,))
     applied_week = cursor.fetchone()[0]
 
-    cursor.execute("SELECT COUNT(*) FROM applications WHERE status NOT IN ('not_applied', 'not_reviewed', 'skipped', 'interested', 'saved')")
+    cursor.execute("SELECT COUNT(*) FROM applications WHERE status IN ('applied', 'interview', 'offer', 'rejected')")
     total_applied = cursor.fetchone()[0]
 
     cursor.execute("SELECT COUNT(*) FROM applications WHERE status IN ('interview', 'offer')")
