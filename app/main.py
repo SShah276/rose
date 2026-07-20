@@ -522,7 +522,7 @@ def fetch_github(request: Request, repo: str = "simplify"):
                 "date_posted": raw.date_posted,
             }, source=raw.source, job_type=raw.job_type)
             result = upsert_job(job_data)
-            summary["inserted" if result == "inserted" else "updated"] += 1
+            summary[result if result in ("inserted", "updated", "skipped") else "updated"] += 1
         except Exception as e:
             summary["skipped"] += 1
             summary["errors"].append(str(e))
@@ -555,7 +555,7 @@ def fetch_intern_list(request: Request):
                 source=raw.source, job_type=raw.job_type,
             )
             result = upsert_job(job_data)
-            summary["inserted" if result == "inserted" else "updated"] += 1
+            summary[result if result in ("inserted", "updated", "skipped") else "updated"] += 1
         except Exception as e:
             summary["skipped"] += 1
             summary["errors"].append(str(e))
@@ -586,7 +586,7 @@ def fetch_newgrad_jobs(request: Request):
                 source=raw.source, job_type=raw.job_type,
             )
             result = upsert_job(job_data)
-            summary["inserted" if result == "inserted" else "updated"] += 1
+            summary[result if result in ("inserted", "updated", "skipped") else "updated"] += 1
         except Exception as e:
             summary["skipped"] += 1
             summary["errors"].append(str(e))
@@ -618,7 +618,7 @@ def fetch_all(request: Request):
                     "date_posted": getattr(raw, "date_posted", ""),
                 }, source=raw.source, job_type=getattr(raw, "job_type", ""))
                 result = upsert_job(job_data)
-                total["inserted" if result == "inserted" else "updated"] += 1
+                total[result if result in ("inserted", "updated", "skipped") else "updated"] += 1
             except Exception as e:
                 total["skipped"] += 1
                 total["errors"].append(str(e))

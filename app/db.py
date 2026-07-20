@@ -477,14 +477,54 @@ def update_job_by_dedupe_key(dedupe_key, job_data):
 
 
 def upsert_job(job_data):
+    # 1. Exact dedupe key match (fast path)
     existing_job = get_job_by_dedupe_key(job_data["dedupe_key"])
-
     if existing_job:
         update_job_by_dedupe_key(job_data["dedupe_key"], job_data)
         return "updated"
-    else:
-        insert_job(job_data)
-        return "inserted"
+
+    # 2. URL match — same posting, location wording changed between fetches
+    url = (job_data.get("url") or "").strip()
+    if url:
+        conn = get_connection()
+        row = conn.execute(
+            "SELECT id, dedupe_key FROM jobs WHERE url = ? AND url != '' LIMIT 1", (url,)
+        ).fetchone()
+        conn.close()
+        if row:
+            # Fix the dedupe_key so future fetches hit the fast path
+            conn2 = get_connection()
+            conn2.execute(
+                "UPDATE jobs SET dedupe_key = ? WHERE id = ?",
+                (job_data["dedupe_key"], row["id"]),
+            )
+            conn2.commit()
+            conn2.close()
+            update_job_by_dedupe_key(job_data["dedupe_key"], job_data)
+            return "updated"
+
+    # 3. Same company+title already actioned — don't resurface it
+    company = (job_data.get("company") or "").strip()
+    title = (job_data.get("title") or "").strip()
+    if company and title:
+        conn = get_connection()
+        row = conn.execute(
+            """
+            SELECT j.id FROM jobs j
+            JOIN applications a ON j.id = a.job_id
+            WHERE LOWER(j.company) = LOWER(?)
+              AND LOWER(j.title)   = LOWER(?)
+              AND a.status NOT IN ('not_applied', 'not_reviewed')
+            LIMIT 1
+            """,
+            (company, title),
+        ).fetchone()
+        conn.close()
+        if row:
+            return "skipped"
+
+    insert_job(job_data)
+    return "inserted"
 
 
 def set_job_salary(job_id: int, salary: int | None, pay_raw: str = ""):
