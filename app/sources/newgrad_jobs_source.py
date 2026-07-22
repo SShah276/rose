@@ -14,6 +14,10 @@ BASE_URL = "https://www.newgrad-jobs.com"
 CATEGORIES = [
     "/list-software-engineer-jobs",
     "/list-data-analyst",
+    "/list-hardware-engineer-jobs",
+    "/list-embedded-systems-jobs",
+    "/list-computer-engineer-jobs",
+    "/list-systems-engineer-jobs",
 ]
 
 

@@ -623,7 +623,7 @@ def fetch_all(request: Request):
                 total["skipped"] += 1
                 total["errors"].append(str(e))
 
-    for repo in ["simplify", "new-grad", "speedyapply"]:
+    for repo in ["simplify", "new-grad", "speedyapply", "ouckah", "cvrve-newgrad"]:
         try:
             _absorb(GitHubSource(repo_key=repo).fetch_jobs(), repo)
         except Exception as e:

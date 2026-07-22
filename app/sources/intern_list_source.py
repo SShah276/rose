@@ -16,6 +16,9 @@ CATEGORIES = [
     "/swe-intern-list",
     "/da-intern-list",
     "/pm-intern-list",
+    "/quant-intern-list",
+    "/security-intern-list",
+    "/hardware-intern-list",
 ]
 
 
