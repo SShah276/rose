@@ -474,6 +474,15 @@ def update_job_by_dedupe_key(dedupe_key, job_data):
     conn.close()
 
 
+def _update_job_by_id(job_id: int, new_dedupe_key: str, job_data: dict):
+    """Retarget an existing job row to a new dedupe_key, then update its fields."""
+    conn = get_connection()
+    conn.execute("UPDATE jobs SET dedupe_key = ? WHERE id = ?", (new_dedupe_key, job_id))
+    conn.commit()
+    conn.close()
+    update_job_by_dedupe_key(new_dedupe_key, job_data)
+
+
 def upsert_job(job_data):
     # 1. Exact dedupe key match (fast path)
     existing_job = get_job_by_dedupe_key(job_data["dedupe_key"])
@@ -486,22 +495,14 @@ def upsert_job(job_data):
     if url:
         conn = get_connection()
         row = conn.execute(
-            "SELECT id, dedupe_key FROM jobs WHERE url = ? AND url != '' LIMIT 1", (url,)
+            "SELECT id FROM jobs WHERE url = ? AND url != '' LIMIT 1", (url,)
         ).fetchone()
         conn.close()
         if row:
-            # Fix the dedupe_key so future fetches hit the fast path
-            conn2 = get_connection()
-            conn2.execute(
-                "UPDATE jobs SET dedupe_key = ? WHERE id = ?",
-                (job_data["dedupe_key"], row["id"]),
-            )
-            conn2.commit()
-            conn2.close()
-            update_job_by_dedupe_key(job_data["dedupe_key"], job_data)
+            _update_job_by_id(row["id"], job_data["dedupe_key"], job_data)
             return "updated"
 
-    # 3. Same company+title already actioned — don't resurface it
+    # 3. Same company+title exists (any status) → update existing, never create a duplicate
     company = (job_data.get("company") or "").strip()
     title = (job_data.get("title") or "").strip()
     if company and title:
@@ -509,20 +510,62 @@ def upsert_job(job_data):
         row = conn.execute(
             """
             SELECT j.id FROM jobs j
-            JOIN applications a ON j.id = a.job_id
-            WHERE LOWER(j.company) = LOWER(?)
-              AND LOWER(j.title)   = LOWER(?)
-              AND a.status NOT IN ('not_applied', 'not_reviewed')
+            WHERE LOWER(j.company) = LOWER(?) AND LOWER(j.title) = LOWER(?)
             LIMIT 1
             """,
             (company, title),
         ).fetchone()
         conn.close()
         if row:
-            return "skipped"
+            _update_job_by_id(row["id"], job_data["dedupe_key"], job_data)
+            return "updated"
 
     insert_job(job_data)
     return "inserted"
+
+
+_STATUS_PRIORITY = {
+    "offer": 9, "interview": 8, "applied": 7,
+    "saved": 6, "interested": 5,
+    "skipped": 4, "closed": 3,
+    "not_reviewed": 2, "not_applied": 1,
+}
+
+
+def cleanup_duplicate_jobs() -> int:
+    """
+    Merge jobs that share the same company+title into one record.
+    Keeps the copy with the highest-priority application status;
+    deletes the rest along with their application rows.
+    Returns the number of duplicate rows deleted.
+    """
+    conn = get_connection()
+    groups = conn.execute("""
+        SELECT LOWER(j.company) AS co, LOWER(j.title) AS ti
+        FROM jobs j
+        GROUP BY co, ti
+        HAVING COUNT(*) > 1
+    """).fetchall()
+
+    deleted = 0
+    for g in groups:
+        rows = conn.execute("""
+            SELECT j.id, COALESCE(a.status, 'not_applied') AS status
+            FROM jobs j
+            LEFT JOIN applications a ON j.id = a.job_id
+            WHERE LOWER(j.company) = ? AND LOWER(j.title) = ?
+        """, (g["co"], g["ti"])).fetchall()
+
+        rows_sorted = sorted(rows, key=lambda r: _STATUS_PRIORITY.get(r["status"], 0), reverse=True)
+
+        for r in rows_sorted[1:]:
+            conn.execute("DELETE FROM applications WHERE job_id = ?", (r["id"],))
+            conn.execute("DELETE FROM jobs WHERE id = ?", (r["id"],))
+            deleted += 1
+
+    conn.commit()
+    conn.close()
+    return deleted
 
 
 def set_job_salary(job_id: int, salary: int | None, pay_raw: str = ""):

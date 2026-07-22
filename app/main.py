@@ -23,7 +23,7 @@ from app.db import (
     has_unscored_jobs, bulk_update_scores,
     update_application, get_tracked_applications, get_stats,
     get_setting, set_setting, upsert_job, set_job_salary,
-    reset_all_statuses, restore_skipped,
+    reset_all_statuses, restore_skipped, cleanup_duplicate_jobs,
     get_profile, save_profile,
     get_ai_outputs, upsert_ai_output, save_ai_output_content, toggle_ai_output_approved,
     get_contact,
@@ -955,6 +955,12 @@ def admin_restore_skipped():
     return RedirectResponse(url="/settings", status_code=303)
 
 
+@app.post("/admin/dedup-cleanup")
+def admin_dedup_cleanup():
+    deleted = cleanup_duplicate_jobs()
+    return RedirectResponse(url=f"/settings?dedup={deleted}", status_code=303)
+
+
 @app.post("/admin/restore-db")
 async def restore_db(db_file: UploadFile = File(...)):
     import os
@@ -982,6 +988,7 @@ def settings_page(request: Request):
         context={
             "weights": weights,
             "cover_letter_template": get_setting("cover_letter_template") or "",
+            "dedup_deleted": request.query_params.get("dedup"),
         }
     )
 

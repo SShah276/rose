@@ -52,7 +52,18 @@
     <div class="card" style="margin-bottom: 24px; border-color: #fca5a5; background: #fff5f5;">
         <h2 style="margin: 0 0 8px; font-size: 15px; color: #b91c1c;">Testing Tools</h2>
         <p style="font-size: 13px; color: #555; margin: 0 0 14px;">Use these to reset state while testing. Both are instant and irreversible.</p>
+        {% if dedup_deleted is not none %}
+        <p style="font-size:13px; color:#15803d; font-weight:600; margin:0 0 10px;">
+            Removed {{ dedup_deleted }} duplicate job{{ 's' if dedup_deleted|int != 1 else '' }}. Your statuses are restored.
+        </p>
+        {% endif %}
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <form method="POST" action="/admin/dedup-cleanup"
+                  onsubmit="return confirm('Merge duplicate jobs and restore your skipped/applied/closed statuses?')">
+                <button type="submit" style="background:#2563eb;color:white;border:none;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:bold;cursor:pointer;">
+                    Fix Duplicates
+                </button>
+            </form>
             <form method="POST" action="/admin/reset-statuses"
                   onsubmit="return confirm('Reset ALL application statuses to Not Applied? This clears every applied date, note, and follow-up.')">
                 <button type="submit" style="background:#dc2626;color:white;border:none;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:bold;cursor:pointer;">
