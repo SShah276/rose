@@ -116,8 +116,9 @@ def infer_role_type(title):
     # --- 6. Fallback ---
     return "Other"
 
-def make_dedupe_key(company, title, location):
-    return f"{company.strip().lower()}|{title.strip().lower()}|{location.strip().lower()}"
+def make_dedupe_key(company, title, location=""):
+    # Location excluded — it varies too much across sources for the same posting
+    return f"{company.strip().lower()}|{title.strip().lower()}"
 
 
 def normalize_job(raw_row, source="csv", job_type=""):

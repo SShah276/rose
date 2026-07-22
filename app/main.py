@@ -374,8 +374,12 @@ async def archive_old_jobs():
     jobs = get_all_jobs()
     for j in jobs:
         status = j.get("status") or "not_applied"
-        date_found = j.get("date_found") or ""
-        if status in ("not_applied", "not_reviewed") and date_found and date_found < cutoff:
+        if status not in ("not_applied", "not_reviewed"):
+            continue
+        date_posted = j.get("date_posted") or ""
+        date_found  = j.get("date_found")  or ""
+        # Archive if the actual posting date OR first-seen date is past the cutoff
+        if (date_posted and date_posted < cutoff) or (date_found and date_found < cutoff):
             update_application(j["id"], status="closed")
     return RedirectResponse(url="/jobs", status_code=303)
 
@@ -527,6 +531,7 @@ def fetch_github(request: Request, repo: str = "simplify"):
             summary["skipped"] += 1
             summary["errors"].append(str(e))
 
+    cleanup_duplicate_jobs()
     return templates.TemplateResponse(
         request=request,
         name="import_result.html",
@@ -559,6 +564,7 @@ def fetch_intern_list(request: Request):
         except Exception as e:
             summary["skipped"] += 1
             summary["errors"].append(str(e))
+    cleanup_duplicate_jobs()
     return templates.TemplateResponse(
         request=request, name="import_result.html",
         context={"summary": summary, "filename": "intern-list.com"}
@@ -590,6 +596,7 @@ def fetch_newgrad_jobs(request: Request):
         except Exception as e:
             summary["skipped"] += 1
             summary["errors"].append(str(e))
+    cleanup_duplicate_jobs()
     return templates.TemplateResponse(
         request=request, name="import_result.html",
         context={"summary": summary, "filename": "newgrad-jobs.com"}
@@ -636,6 +643,7 @@ def fetch_all(request: Request):
             total["errors"].append(f"{label}: {e}")
 
     total["rows_read"] = total["fetched"]
+    cleanup_duplicate_jobs()
     return templates.TemplateResponse(
         request=request, name="import_result.html",
         context={"summary": total, "filename": f"All Sources ({', '.join(sources_run)})"}
