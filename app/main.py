@@ -45,11 +45,24 @@ from app.sources.intern_list_source import InternListSource
 from app.sources.newgrad_jobs_source import NewGradJobsSource
 import urllib.request
 
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.interval import IntervalTrigger
+
 app = FastAPI()
 templates = Jinja2Templates(directory="app/templates")
 
 from fastapi.staticfiles import StaticFiles
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+def _scheduled_fetch():
+    try:
+        _run_fetch_all()
+    except Exception:
+        pass
+
+_scheduler = BackgroundScheduler()
+_scheduler.add_job(_scheduled_fetch, IntervalTrigger(hours=12))
+_scheduler.start()
 
 # ── Auth middleware (runs after SessionMiddleware populates request.session) ──
 class _AuthMiddleware(BaseHTTPMiddleware):
@@ -603,9 +616,8 @@ def fetch_newgrad_jobs(request: Request):
     )
 
 
-@app.post("/fetch/all")
-def fetch_all(request: Request):
-    """Run all five job sources in sequence and return a combined summary."""
+def _run_fetch_all() -> dict:
+    """Core fetch logic — runs all sources, deduplicates, returns summary dict."""
     total = {"fetched": 0, "inserted": 0, "updated": 0, "skipped": 0, "errors": []}
     sources_run = []
 
@@ -630,7 +642,7 @@ def fetch_all(request: Request):
                 total["skipped"] += 1
                 total["errors"].append(str(e))
 
-    for repo in ["simplify", "new-grad", "speedyapply", "ouckah", "cvrve-newgrad"]:
+    for repo in ["simplify", "new-grad", "speedyapply"]:
         try:
             _absorb(GitHubSource(repo_key=repo).fetch_jobs(), repo)
         except Exception as e:
@@ -643,10 +655,17 @@ def fetch_all(request: Request):
             total["errors"].append(f"{label}: {e}")
 
     total["rows_read"] = total["fetched"]
+    total["sources"] = sources_run
     cleanup_duplicate_jobs()
+    return total
+
+
+@app.post("/fetch/all")
+def fetch_all(request: Request):
+    total = _run_fetch_all()
     return templates.TemplateResponse(
         request=request, name="import_result.html",
-        context={"summary": total, "filename": f"All Sources ({', '.join(sources_run)})"}
+        context={"summary": total, "filename": f"All Sources ({', '.join(total.get('sources', []))})"}
     )
 
 

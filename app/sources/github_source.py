@@ -23,16 +23,6 @@ KNOWN_REPOS = {
         "format":   "markdown",
         "job_type": "internship",
     },
-    "ouckah": {
-        "url":      "https://raw.githubusercontent.com/Ouckah/Summer2026-Internships/main/README.md",
-        "format":   "html",
-        "job_type": "internship",
-    },
-    "cvrve-newgrad": {
-        "url":      "https://raw.githubusercontent.com/cvrve/New-Grad-2026/dev/README.md",
-        "format":   "html",
-        "job_type": "new_grad",
-    },
 }
 
 

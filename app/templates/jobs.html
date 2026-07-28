@@ -180,6 +180,13 @@
         .bulk-act { border: none; border-radius: 6px; padding: 6px 14px; font-size: 12px;
                     font-weight: 700; cursor: pointer; }
 
+        /* ── Type tabs (Internship / Full-Time) ── */
+        .type-tabs { display: flex; gap: 3px; background: #f3f4f6; border-radius: 7px; padding: 3px; }
+        .type-tab { border: none; background: transparent; border-radius: 5px; padding: 4px 10px;
+                    font-size: 12px; font-weight: 600; cursor: pointer; color: #6b7280;
+                    font-family: inherit; transition: all 0.12s; white-space: nowrap; }
+        .type-tab.active { background: white; color: #111; box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+
         /* ── Hidden jobs section ── */
         .hidden-job-row { display: flex; align-items: center; gap: 8px; padding: 7px 14px;
                           border-bottom: 1px solid #f3f4f6; font-size: 13px; }
@@ -230,6 +237,11 @@
         <select id="role-filter" class="filter-select">
             <option value="">All types</option>
         </select>
+        <div class="type-tabs" id="type-tabs">
+            <button class="type-tab active" data-type="">All</button>
+            <button class="type-tab" data-type="internship">Internships</button>
+            <button class="type-tab" data-type="new_grad">Full-Time</button>
+        </div>
         <span id="filter-count" class="filter-count">
             {{ jobs | length }}{% if total_visible > jobs | length %}/{{ total_visible }}{% endif %} jobs
         </span>
@@ -382,7 +394,8 @@
     <div class="job-card"
          data-text="{{ ((job.company or '') + ' ' + (job.title or '') + ' ' + (job.location or '')) | lower }}"
          data-status="{{ status }}"
-         data-role="{{ (job.role_type or '') | lower }}">
+         data-role="{{ (job.role_type or '') | lower }}"
+         data-jobtype="{{ job.job_type or '' }}">
 
         <!-- Header -->
         <div class="card-header">
@@ -615,6 +628,7 @@ function togglePlan() {
     var roleSel = document.getElementById('role-filter');
     var cards   = Array.from(document.querySelectorAll('.job-card[data-text]'));
     var countEl = document.getElementById('filter-count');
+    var activeType = '';
 
     var roles = new Set();
     cards.forEach(function(c) { if (c.dataset.role) roles.add(c.dataset.role); });
@@ -633,7 +647,8 @@ function togglePlan() {
         cards.forEach(function(card) {
             var show = (!q || card.dataset.text.includes(q))
                     && (!s || card.dataset.status === s)
-                    && (!r || card.dataset.role === r);
+                    && (!r || card.dataset.role === r)
+                    && (!activeType || card.dataset.jobtype === activeType);
             card.style.display = show ? '' : 'none';
             if (show) vis++;
         });
@@ -643,6 +658,15 @@ function togglePlan() {
     search.addEventListener('input', applyFilters);
     statSel.addEventListener('change', applyFilters);
     roleSel.addEventListener('change', applyFilters);
+
+    document.getElementById('type-tabs').addEventListener('click', function(e) {
+        var btn = e.target.closest('.type-tab');
+        if (!btn) return;
+        document.querySelectorAll('.type-tab').forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        activeType = btn.dataset.type;
+        applyFilters();
+    });
 })();
 
 // ── Bulk select ──
