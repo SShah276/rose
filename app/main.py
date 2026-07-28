@@ -544,7 +544,6 @@ def fetch_github(request: Request, repo: str = "simplify"):
             summary["skipped"] += 1
             summary["errors"].append(str(e))
 
-    cleanup_duplicate_jobs()
     return templates.TemplateResponse(
         request=request,
         name="import_result.html",
@@ -577,7 +576,6 @@ def fetch_intern_list(request: Request):
         except Exception as e:
             summary["skipped"] += 1
             summary["errors"].append(str(e))
-    cleanup_duplicate_jobs()
     return templates.TemplateResponse(
         request=request, name="import_result.html",
         context={"summary": summary, "filename": "intern-list.com"}
@@ -609,7 +607,6 @@ def fetch_newgrad_jobs(request: Request):
         except Exception as e:
             summary["skipped"] += 1
             summary["errors"].append(str(e))
-    cleanup_duplicate_jobs()
     return templates.TemplateResponse(
         request=request, name="import_result.html",
         context={"summary": summary, "filename": "newgrad-jobs.com"}
@@ -656,7 +653,6 @@ def _run_fetch_all() -> dict:
 
     total["rows_read"] = total["fetched"]
     total["sources"] = sources_run
-    cleanup_duplicate_jobs()
     return total
 
 
@@ -986,6 +982,22 @@ def admin_restore_skipped():
 def admin_dedup_cleanup():
     deleted = cleanup_duplicate_jobs()
     return RedirectResponse(url=f"/settings?dedup={deleted}", status_code=303)
+
+
+@app.get("/admin/download-db")
+def download_db():
+    from app.db import DB_PATH
+    import shutil, tempfile
+    # Copy to a temp file so we get a consistent read even if SQLite is writing
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as tmp:
+        shutil.copy2(str(DB_PATH), tmp.name)
+        data = open(tmp.name, "rb").read()
+    from fastapi.responses import Response as _Resp
+    return _Resp(
+        content=data,
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": "attachment; filename=jobs.db"},
+    )
 
 
 @app.post("/admin/restore-db")

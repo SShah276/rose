@@ -79,12 +79,17 @@
         </div>
 
         <div style="margin-top:16px; padding-top:14px; border-top:1px solid #fca5a5;">
-            <p style="font-size:13px; font-weight:700; color:#b91c1c; margin:0 0 4px;">Migrate from local → deployed</p>
+            <p style="font-size:13px; font-weight:700; color:#b91c1c; margin:0 0 4px;">Database backup / restore</p>
             <p style="font-size:12px; color:#555; margin:0 0 10px;">
-                Upload your local <code style="background:#fff0f0; padding:1px 5px; border-radius:3px;">jobs.db</code>
-                to restore all jobs, statuses, contacts, and settings on the deployed server.
-                <strong>This overwrites the current database.</strong>
+                <strong>Download</strong> saves the live database to your machine.
+                <strong>Restore</strong> uploads a local <code style="background:#fff0f0; padding:1px 5px; border-radius:3px;">jobs.db</code> and overwrites the server database.
             </p>
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+                <a href="/admin/download-db"
+                   style="background:#0f766e;color:white;border:none;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:bold;cursor:pointer;text-decoration:none;">
+                    Download Database
+                </a>
+            </div>
             <form method="POST" action="/admin/restore-db" enctype="multipart/form-data"
                   onsubmit="return confirm('This will replace the current database with the uploaded file. Continue?')"
                   style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
