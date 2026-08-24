@@ -65,42 +65,51 @@ def _score_location(location: str) -> int:
     return 50
 
 
+# Role desirability, 0-100. Tuned toward hardware / computer-engineering work:
+# these values drive the score-ordered top-N window on /jobs, so a role scored
+# below the SWE flood never reaches the page.
+_ROLE_SCORES = {
+    # Hardware, silicon & computer architecture — the target profile
+    "Computer Architecture":  99,
+    "Silicon/ASIC Design":    99,
+    "FPGA Engineering":       98,
+    "Embedded Systems":       98,
+    "Hardware Verification":  97,
+    "HW":                     96,
+    "Analog/Mixed-Signal":    95,
+    "Robotics/Controls":      93,
+
+    # Low-level software — hardware-adjacent, still strongly preferred
+    "Systems/Infra":          90,
+
+    # General software
+    "SWE":                    80,
+    "Backend":                78,
+    "DevOps/SRE":             68,
+    "Fullstack":              68,
+    "Mobile (iOS/Android)":   60,
+    "Frontend":               55,
+
+    # Data, AI & quant
+    "AI/ML":                  78,
+    "Quantitative Developer": 75,
+    "Data Engineer":          70,
+    "Quantitative Researcher":65,
+    "Data Scientist":         60,
+
+    # Product, design & security
+    "Security/SecOps":                  70,
+    "Technical Product Manager (TPM)":  65,
+    "Solutions Architect":              55,
+    "PM":                               50,
+    "Product Designer / UX":            40,
+
+    "Other": 45,
+}
+
+
 def calculate_job_score(job, weights: dict):
-    role_scores = {
-        # Software & Systems Engineering
-        "SWE": 99,
-        "Backend": 98,
-        "Systems/Infra": 97,
-        "Fullstack": 95,
-        "Frontend": 90,
-        "Mobile (iOS/Android)": 90,
-        "DevOps/SRE": 90,
-
-        # Hardware & Physical Systems
-        "HW": 93,
-        "Silicon/ASIC Design": 95,
-        "FPGA Engineering": 95,
-        "Embedded Systems": 95,
-        "Robotics/Controls": 90,
-
-        # Data, AI, and Advanced Computing
-        "AI/ML": 90,
-        "Data Scientist": 87,
-        "Data Engineer": 90,
-        "Quantitative Developer": 87,
-        "Quantitative Researcher": 80,
-
-        # Product, Design, & Business Operations
-        "PM": 88,
-        "Technical Product Manager (TPM)": 93,
-        "Product Designer / UX": 84,
-        "Solutions Architect": 88,
-        "Security/SecOps": 93,
-
-        "Other": 60
-    }
-
-    role_score = role_scores.get(job["role_type"], 50)
+    role_score = _ROLE_SCORES.get(job["role_type"], 50)
     location_score = _score_location(job.get("location") or "")
 
     salary = job["salary"] or 0

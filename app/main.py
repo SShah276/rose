@@ -41,7 +41,9 @@ from app.ai import (
 from app.scoring import rank_jobs
 from app.ingestion import import_jobs_from_csv_bytes, normalize_job
 from app.sources.github_source import GitHubSource, KNOWN_REPOS
+from app.sources.greenhouse_source import GreenhouseSource
 from app.sources.intern_list_source import InternListSource
+from app.sources.lever_source import LeverSource
 from app.sources.newgrad_jobs_source import NewGradJobsSource
 import urllib.request
 
@@ -613,6 +615,57 @@ def fetch_newgrad_jobs(request: Request):
     )
 
 
+def _ingest_source(source, label: str) -> dict:
+    """Fetch one source and upsert its postings, returning an import summary."""
+    summary = {"fetched": 0, "inserted": 0, "updated": 0, "skipped": 0, "errors": []}
+    try:
+        raw_jobs = source.fetch_jobs()
+    except Exception as e:
+        summary["errors"].append(f"{label}: {e}")
+        return summary
+
+    summary["fetched"] = len(raw_jobs)
+    # Sources that fan out over many boards report partial failures separately
+    summary["errors"].extend(getattr(source, "errors", []))
+
+    for raw in raw_jobs:
+        try:
+            job_data = normalize_job({
+                "company":     raw.company,
+                "title":       raw.title,
+                "location":    raw.location,
+                "salary":      str(raw.salary or ""),
+                "pay_raw":     raw.pay_raw,
+                "url":         raw.url,
+                "description": raw.description,
+                "date_posted": raw.date_posted,
+            }, source=raw.source, job_type=raw.job_type)
+            result = upsert_job(job_data)
+            summary[result if result in ("inserted", "updated", "skipped") else "updated"] += 1
+        except Exception as e:
+            summary["skipped"] += 1
+            summary["errors"].append(str(e))
+    return summary
+
+
+@app.post("/fetch/greenhouse")
+def fetch_greenhouse(request: Request):
+    return templates.TemplateResponse(
+        request=request, name="import_result.html",
+        context={"summary": _ingest_source(GreenhouseSource(), "greenhouse"),
+                 "filename": "Greenhouse boards"},
+    )
+
+
+@app.post("/fetch/lever")
+def fetch_lever(request: Request):
+    return templates.TemplateResponse(
+        request=request, name="import_result.html",
+        context={"summary": _ingest_source(LeverSource(), "lever"),
+                 "filename": "Lever boards"},
+    )
+
+
 def _run_fetch_all() -> dict:
     """Core fetch logic — runs all sources, deduplicates, returns summary dict."""
     total = {"fetched": 0, "inserted": 0, "updated": 0, "skipped": 0, "errors": []}
@@ -645,9 +698,12 @@ def _run_fetch_all() -> dict:
         except Exception as e:
             total["errors"].append(f"github/{repo}: {e}")
 
-    for Src, label in [(InternListSource, "intern-list"), (NewGradJobsSource, "newgrad-jobs")]:
+    for Src, label in [(InternListSource, "intern-list"), (NewGradJobsSource, "newgrad-jobs"),
+                       (GreenhouseSource, "greenhouse"), (LeverSource, "lever")]:
         try:
-            _absorb(Src().fetch_jobs(), label)
+            src = Src()
+            _absorb(src.fetch_jobs(), label)
+            total["errors"].extend(getattr(src, "errors", []))
         except Exception as e:
             total["errors"].append(f"{label}: {e}")
 

@@ -220,6 +220,14 @@
                 Fetch All Sources
             </button>
         </form>
+        <form method="POST" action="/fetch/greenhouse" style="display:inline"
+              onsubmit="this.querySelector('button').textContent='Fetching…'; this.querySelector('button').disabled=true;">
+            <button type="submit" class="btn-import">Greenhouse</button>
+        </form>
+        <form method="POST" action="/fetch/lever" style="display:inline"
+              onsubmit="this.querySelector('button').textContent='Fetching…'; this.querySelector('button').disabled=true;">
+            <button type="submit" class="btn-import">Lever</button>
+        </form>
         <a href="/import/csv" style="font-size:12px; color:#aaa; text-decoration:none; margin-left:6px;">+ CSV</a>
     </div>
 

@@ -12,13 +12,13 @@ from app.sources.weblist import fetch_job_list_page
 
 BASE_URL = "https://www.intern-list.com"
 
+# Verified against the site nav. intern-list.com publishes no hardware/ECE
+# category — every hardware path tried here 404s, so hardware coverage from
+# this source comes only from titles that surface in the SWE list.
 CATEGORIES = [
     "/swe-intern-list",
     "/da-intern-list",
     "/pm-intern-list",
-    "/quant-intern-list",
-    "/security-intern-list",
-    "/hardware-intern-list",
 ]
 
 

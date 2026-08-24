@@ -22,7 +22,7 @@ FastAPI  (app/main.py)          ← single-file route layer
    ├── Scoring   (app/scoring.py)
    ├── AI layer  (app/ai.py)    ← Anthropic Claude API
    ├── Agents    (app/agents/)  ← discovery · evaluation · outreach · contact finder
-   ├── Sources   (app/sources/) ← GitHub job list scrapers · CSV import
+   ├── Sources   (app/sources/) ← GitHub job list scrapers · ATS board APIs · CSV import
    ├── PDF       (app/pdf.py)   ← cover letter → downloadable PDF (fpdf2)
    └── DB        (app/db.py)    ← SQLite via sqlite3
         │
@@ -84,7 +84,7 @@ AI outputs (cover letters, job analysis, outreach messages) are cached in `ai_ou
 
 ## Key Features
 
-- **Job board:** Aggregates listings from SimplifyJobs, New Grad, SpeedyApply, and Intern List GitHub repos + CSV import. Scored and ranked by role fit, location, compensation, and freshness using configurable weights.
+- **Job board:** Aggregates listings from SimplifyJobs, New Grad, SpeedyApply and Intern List job-list scrapers, plus per-company Greenhouse and Lever board APIs (see `app/sources/ats.py` for the company registry) and CSV import. Scored and ranked by role fit, location, compensation, and freshness using configurable weights.
 - **AI analysis:** Per-job fit score, strengths/weaknesses, and tailored application notes via Claude.
 - **Cover letter:** Adapts your template to each company. Outputs a formatted, downloadable PDF (fpdf2 with Unicode support via Windows Arial TTF).
 - **Recruiter search:** LinkedIn search (DuckDuckGo) + Hunter.io email lookup, deduplicated and stored.

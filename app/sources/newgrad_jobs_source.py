@@ -11,13 +11,11 @@ from app.sources.weblist import fetch_job_list_page
 
 BASE_URL = "https://www.newgrad-jobs.com"
 
+# Verified live. The hardware/embedded/computer-engineer paths previously
+# listed here do not exist on newgrad-jobs.com and 404'd on every fetch.
 CATEGORIES = [
     "/list-software-engineer-jobs",
     "/list-data-analyst",
-    "/list-hardware-engineer-jobs",
-    "/list-embedded-systems-jobs",
-    "/list-computer-engineer-jobs",
-    "/list-systems-engineer-jobs",
 ]
 
 

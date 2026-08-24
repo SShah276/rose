@@ -55,66 +55,81 @@ def parse_salary(value) -> int | None:
 
     return None
     
+# Ordered (role_type, regex) rules — first match wins.
+#
+# Hardware / computer-engineering rules deliberately precede the software and
+# AI/ML rules: "Hardware Engineer, AI Accelerators" is a hardware role, and
+# "Embedded Software Engineer" is an embedded role, not a generic SWE one.
+_ROLE_RULES = [
+    # ── Hardware & computer architecture ──────────────────────────────────
+    ("Computer Architecture", r"\b(computer|systems?|cpu|gpu|soc|processor|memory|cache|accelerator|performance|platform)\s+"
+                              r"(micro)?architect(ure|s)?\b|\bmicroarchitecture\b"),
+    ("Silicon/ASIC Design",   r"\b(asic|vlsi|rtl|silicon|soc|chip|semiconductor|integrated\s+circuit|"
+                              r"physical\s+design|dft|design\s+for\s+test|static\s+timing|logic\s+synthesis|"
+                              r"place\s*(and|&)\s*route|standard\s+cell|tape-?out|foundry|process\s+integration)\b"),
+    ("FPGA Engineering",      r"\b(fpga|hdl|verilog|systemverilog|vhdl|digital\s+design|logic\s+design)\b"),
+    ("Hardware Verification", r"\b(design\s+verification|hardware\s+verification|dv\s+engineer|verification\s+engineer|"
+                              r"uvm|(post|pre)-?silicon\s+validation|silicon\s+bring-?up|hardware\s+validation|"
+                              r"emulation\s+engineer)\b"),
+    ("Analog/Mixed-Signal",   r"\b(analog|mixed[-\s]?signal|rf|radio\s+frequency|antenna|power\s+electronics|"
+                              r"power\s+management|circuit\s+design|ic\s+design|photonics?|mems|"
+                              r"optical\s+(packaging|engineer\w*|design|characteri[sz]ation)|"
+                              r"high[-\s]?speed\s+(serdes|io|i/o))\b"),
+    ("Embedded Systems",      r"\b(embedded|firmware|bare[-\s]?metal|rtos|device\s+driver|driver\s+(engineer|development)|"
+                              r"board\s+support|bsp|bootloader|microcontroller|mcu|avionics|"
+                              r"kernel\s+(engineer|developer|development))\b"),
+    ("Robotics/Controls",     r"\b(robotics?|mechatronics?|controls?\s+(engineer|systems?|intern)|motion\s+control|"
+                              r"autonomy|perception\s+engineer|guidance,?\s+navigation|gnc|actuator)\b"),
+    ("HW",                    r"\b(hardware|electronics|pcb|printed\s+circuit|board\s+design|schematic\s+capture|"
+                              r"electrical\s+(engineer\w*|test|design|power|systems?|hardware|reliability)|"
+                              r"power\s+(systems?|integration|integrity|delivery)|signal\s+integrity|"
+                              r"(board|bench|environmental|reliability|system)\s+(test|validation|bring-?up)|"
+                              r"radiation\s+effects|cad\s+(engineer|design|librarian)|"
+                              r"thermal\s+engineer|electro-?mechanical|computer\s+engineer\w*|ee)\b"),
+
+    # ── Quantitative finance ──────────────────────────────────────────────
+    ("Quantitative Developer",  r"\bquant\w*\b(?=.*\b(dev|developer|software|engineer|technology)\b)"),
+    ("Quantitative Researcher", r"\bquant\w*\b(?=.*\b(research\w*|analyst|trading|trader|strateg\w*)\b)|\bquant\w*\b"),
+
+    # ── Data, AI & machine learning ───────────────────────────────────────
+    ("AI/ML",          r"\b(machine\s+learning|ml|mle|ai|a\.i\.|artificial\s+intelligence|deep\s+learning|"
+                       r"llm|nlp|computer\s+vision|generative\s+ai)\b"),
+    ("Data Engineer",  r"\bdata\s+(engineer\w*|platform|infrastructure)\b"),
+    ("Data Scientist", r"\b(data\s+scientist|data\s+science)\b"),
+
+    # ── Specialized software engineering & infrastructure ─────────────────
+    ("Backend",              r"\b(backend|back-?end|server-?side|distributed\s+systems|api\s+engineer)\b"),
+    ("Systems/Infra",        r"\b(systems?\s+(engineer|software|programming)|infra(structure)?|compiler|operating\s+system|"
+                             r"performance\s+engineer|low-?level)\b"),
+    ("Fullstack",            r"\b(full-?stack)\b"),
+    ("Frontend",             r"\b(frontend|front-?end|ui|ux/ui|client-?side|web\s+develop\w*|react)\b"),
+    ("Mobile (iOS/Android)", r"\b(mobile|ios|android|swift|kotlin)\b"),
+    ("DevOps/SRE",           r"\b(devops|sre|site\s+reliability|platform\s+engineer|cloud\s+engineer)\b"),
+    ("Security/SecOps",      r"\b(security|secops|cyber\w*|appsec|cryptograph\w*|penetration\s+test\w*)\b"),
+    ("SWE",                  r"\b(software|swe|sde|developer|programmer)\b"),
+
+    # ── Product, design & business operations ─────────────────────────────
+    ("Technical Product Manager (TPM)", r"\b(tpm|technical\s+product\s+manag\w*|technical\s+program\s+manag\w*)\b"),
+    ("PM",                              r"\b(product\s+manag\w*|product\s+owner|pm)\b"),
+    ("Product Designer / UX",           r"\b(designer|ux|user\s+experience)\b"),
+    ("Solutions Architect",             r"\b(solutions?\s+(architect|engineer)|sales\s+engineer)\b"),
+]
+
+
 def infer_role_type(title):
-    title_lower = title.lower()
+    """
+    Map a job title to a role_type using the ordered rules above.
 
-    # --- 1. Quantitative Finance ---
-    if "quant" in title_lower or "quantitative" in title_lower:
-        if "dev" in title_lower or "software" in title_lower:
-            return "Quantitative Developer"
-        if "research" in title_lower or "analyst" in title_lower:
-            return "Quantitative Researcher"
-
-    # --- 2. Data, AI, and Machine Learning ---
-    if "machine learning" in title_lower or "ml" in title_lower or "ai " in title_lower or title_lower.startswith("ai"):
-        return "AI/ML"
-    if "data scientist" in title_lower or "science" in title_lower:
-        return "Data Scientist"
-    if "data engineer" in title_lower:
-        return "Data Engineer"
-
-    # --- 3. Hardware & Physical Systems ---
-    if "silicon" in title_lower or "asic" in title_lower:
-        return "Silicon/ASIC Design"
-    if "fpga" in title_lower:
-        return "FPGA Engineering"
-    if "embedded" in title_lower:
-        return "Embedded Systems"
-    if "robotics" in title_lower or "controls" in title_lower or "automation" in title_lower:
-        return "Robotics/Controls"
-    if "hardware" in title_lower or "electrical" in title_lower:
-        return "HW"
-
-    # --- 4. Specialized Software Engineering & Infrastructure ---
-    if "backend" in title_lower:
-        return "Backend"
-    if "systems" in title_lower or "infra" in title_lower:
-        return "Systems/Infra"
-    if "fullstack" in title_lower or "full-stack" in title_lower:
-        return "Fullstack"
-    if "frontend" in title_lower or "ui" in title_lower:
-        return "Frontend"
-    if "mobile" in title_lower or "ios" in title_lower or "android" in title_lower:
-        return "Mobile (iOS/Android)"
-    if "devops" in title_lower or "sre" in title_lower or "reliability" in title_lower:
-        return "DevOps/SRE"
-    if "software" in title_lower or "swe" in title_lower or "developer" in title_lower:
-        return "SWE"
-
-    # --- 5. Product, Design, & Business Operations ---
-    if "tpm" in title_lower or "technical product manager" in title_lower:
-        return "Technical Product Manager (TPM)"
-    if "product manager" in title_lower or title_lower == "pm" or "product" in title_lower:
-        return "PM"
-    if "designer" in title_lower or "ux" in title_lower or "ui/ux" in title_lower:
-        return "Product Designer / UX"
-    if "solutions architect" in title_lower or "solutions engineer" in title_lower:
-        return "Solutions Architect"
-    if "security" in title_lower or "secops" in title_lower or "cyber" in title_lower:
-        return "Security/SecOps"
-
-    # --- 6. Fallback ---
+    Word boundaries matter: the previous bare-substring tests silently misfired
+    ("ui" matched "circuit", "ai"/"ml" matched arbitrary words), which routed
+    hardware titles into Frontend and AI/ML.
+    """
+    t = title.lower()
+    for role, pattern in _ROLE_RULES:
+        if re.search(pattern, t):
+            return role
     return "Other"
+
 
 def make_dedupe_key(company, title, location=""):
     # Location excluded — it varies too much across sources for the same posting
